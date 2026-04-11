@@ -1,0 +1,8 @@
+You are in the project repo (workspace root).
+1. Open docs/todo.md (or the project’s main task checklist). Under the roadmap section, find the first task line that is still unchecked (e.g. `- [ ] **NNN**`).
+2. Implement only that task using the matching spec file (here: tasks/NNN.md). Do not start other numbered task files unless this task explicitly requires it.
+3. When done: satisfy the task’s acceptance criteria and run its verification commands (e.g. npm test, npm run build); fix any failures.
+4. Mark that roadmap line done in docs/todo.md (`- [x] **NNN**`).
+5. Create a git commit that includes all changes for this task (staged files only for this work). Use a message like: `task NNN: <short summary>`. Do not skip the commit if there are changes.
+6. Reply with a short summary: task id, files touched, commands run, commit hash or message, and anything the next run should know.
+If every roadmap task is already checked, say so and stop.

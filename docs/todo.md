@@ -6,36 +6,38 @@ This checklist is the full, sequential set of items needed to build V1, derived 
 
 ## Task 001 — Project Scaffold and Runnable Search Page Shell
 
+- [x] **001** — complete
+
 ### Project setup
-- [ ] Create `pyproject.toml` with Flask and pytest dependencies.
-- [ ] Create `.gitignore` covering `*.db`, `__pycache__`, `.venv`, `.pytest_cache`, temp upload dirs.
-- [ ] Create `.env.example` documenting `POEM_ADMIN_PASSWORD`, `POEM_DB_PATH`, `POEM_SECRET_KEY`.
-- [ ] Create `sample_data/.gitkeep`.
+- [x] Create `pyproject.toml` with Flask and pytest dependencies.
+- [x] Create `.gitignore` covering `*.db`, `__pycache__`, `.venv`, `.pytest_cache`, temp upload dirs.
+- [x] Create `.env.example` documenting `POEM_ADMIN_PASSWORD`, `POEM_DB_PATH`, `POEM_SECRET_KEY`.
+- [x] Create `sample_data/.gitkeep`.
 
 ### Source modules
-- [ ] `src/poem_assoc/__init__.py`.
-- [ ] `src/poem_assoc/__main__.py` running the Flask dev server.
-- [ ] `src/poem_assoc/config.py` with `Config` dataclass and `from_environment`.
-- [ ] `src/poem_assoc/db.py` with `init_db` and `get_connection`.
-- [ ] `src/poem_assoc/app.py` with `create_app` that calls `init_db`.
-- [ ] `src/poem_assoc/routes/__init__.py`.
-- [ ] `src/poem_assoc/routes/public.py` with `GET /`.
+- [x] `src/poem_assoc/__init__.py`.
+- [x] `src/poem_assoc/__main__.py` running the Flask dev server.
+- [x] `src/poem_assoc/config.py` with `Config` dataclass and `from_environment`.
+- [x] `src/poem_assoc/db.py` with `init_db` and `get_connection`.
+- [x] `src/poem_assoc/app.py` with `create_app` that calls `init_db`.
+- [x] `src/poem_assoc/routes/__init__.py`.
+- [x] `src/poem_assoc/routes/public.py` with `GET /`.
 
 ### Templates and static
-- [ ] `templates/base.html` with viewport meta, `{% block title %}`, `{% block content %}`.
-- [ ] `templates/search.html` extending base, empty form with autofocus.
-- [ ] `static/css/styles.css` with responsive baseline.
+- [x] `templates/base.html` with viewport meta, `{% block title %}`, `{% block content %}`.
+- [x] `templates/search.html` extending base, empty form with autofocus.
+- [x] `static/css/styles.css` with responsive baseline.
 
 ### Schema
-- [ ] `poems` table with `id, title, text, cleaned_text, embedding, created_at, updated_at`.
-- [ ] `idx_poems_cleaned_text` index.
-- [ ] `init_db` idempotent.
+- [x] `poems` table with `id, title, text, cleaned_text, embedding, created_at, updated_at`.
+- [x] `idx_poems_cleaned_text` index.
+- [x] `init_db` idempotent.
 
 ### Tests
-- [ ] `tests/conftest.py` with `temp_db_path`, `app`, `client` fixtures.
-- [ ] `tests/test_scaffold.py` covering config, init_db, create_app, and search page markup.
-- [ ] Smoke tests pass.
-- [ ] Observable: `python -m poem_assoc` serves the search page on localhost:5000.
+- [x] `tests/conftest.py` with `temp_db_path`, `app`, `client` fixtures.
+- [x] `tests/test_scaffold.py` covering config, init_db, create_app, and search page markup.
+- [x] Smoke tests pass.
+- [x] Observable: `python -m poem_assoc` serves the search page on localhost:5000.
 
 ---
 

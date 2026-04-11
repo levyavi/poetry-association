@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="search-section">
+  <form method="post" action="/" class="search-form">
+    <input
+      type="text"
+      name="q"
+      value="{{ q | e }}"
+      placeholder="Search for poems…"
+      autofocus
+      class="search-input"
+      aria-label="Search query"
+    >
+    <button type="submit" class="search-button">Search</button>
+  </form>
+  {% if q %}
+  <p class="query-context">Results for: &ldquo;{{ q | e }}&rdquo;</p>
+  {% endif %}
+</section>
+{% endblock %}

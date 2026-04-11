@@ -1,0 +1,91 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  background: #fafaf8;
+  color: #1a1a1a;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+header {
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #d0cfc8;
+  padding-bottom: 1rem;
+}
+
+.site-title {
+  font-size: 1.6rem;
+  font-weight: normal;
+  letter-spacing: 0.02em;
+  color: #2c2c2c;
+}
+
+.search-section {
+  margin-top: 1.5rem;
+}
+
+.search-form {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1 1 300px;
+  padding: 0.6rem 0.8rem;
+  font-size: 1rem;
+  font-family: inherit;
+  border: 1px solid #c0bfb8;
+  border-radius: 3px;
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.search-input:focus {
+  outline: 2px solid #4a7fa5;
+  outline-offset: 1px;
+  border-color: #4a7fa5;
+}
+
+.search-button {
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  font-family: inherit;
+  background: #4a7fa5;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.search-button:hover {
+  background: #3a6f95;
+}
+
+.query-context {
+  margin-top: 1rem;
+  font-style: italic;
+  color: #555;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 480px) {
+  .search-form {
+    flex-direction: column;
+  }
+
+  .search-button {
+    width: 100%;
+  }
+}

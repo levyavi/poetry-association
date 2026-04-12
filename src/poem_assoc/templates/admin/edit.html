@@ -1,0 +1,24 @@
+{% extends "admin/_base.html" %}
+
+{% block title %}Edit Poem{% endblock %}
+
+{% block content %}
+<section class="admin-form-section">
+  <h2 class="admin-section-title">Edit Poem</h2>
+
+  <form method="post" action="{{ url_for('admin.edit_poem', poem_id=poem_id) }}" class="poem-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <label for="title" class="form-label">Title</label>
+    <input type="text" id="title" name="title" value="{{ title }}" class="form-input" autocomplete="off">
+
+    <label for="text" class="form-label">Text</label>
+    <textarea id="text" name="text" class="form-textarea" rows="12">{{ text }}</textarea>
+
+    <div class="form-actions">
+      <button type="submit" class="search-button">Save</button>
+      <a href="{{ url_for('admin.dashboard') }}" class="btn-cancel">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

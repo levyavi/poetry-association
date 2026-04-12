@@ -86,6 +86,55 @@ def find_by_cleaned_text(
     ).fetchone()
 
 
+def update_poem(
+    conn: sqlite3.Connection,
+    poem_id: int,
+    title: str,
+    text: str,
+    embedding_service: EmbeddingService,
+) -> sqlite3.Row:
+    """Update a poem's title and text, enforcing duplicate rules and
+    regenerating the embedding when content changes.
+
+    Returns the updated row.
+    Raises PoemNotFoundError if the id does not exist.
+    Raises DuplicatePoemError if another row has the same cleaned text.
+    """
+    existing = get_poem(conn, poem_id)
+    if existing is None:
+        raise PoemNotFoundError(f"No poem with id {poem_id}")
+
+    cleaned = clean_poem_text(text)
+    dedup = compute_dedup_key(cleaned)
+
+    dup = find_by_cleaned_text(conn, dedup)
+    if dup is not None and dup["id"] != poem_id:
+        raise DuplicatePoemError("A poem with this cleaned text already exists")
+
+    content_changed = (existing["title"] != title) or (existing["text"] != text)
+
+    if content_changed:
+        vector = embedding_service.encode(title, cleaned)
+        blob = embedding_service.to_bytes(vector)
+        now = _utcnow()
+        with conn:
+            conn.execute(
+                "UPDATE poems SET title = ?, text = ?, cleaned_text = ?, "
+                "embedding = ?, updated_at = ? WHERE id = ?",
+                (title, text, dedup, blob, now, poem_id),
+            )
+    # If nothing changed, don't bump updated_at
+
+    return get_poem(conn, poem_id)
+
+
+def delete_poem(conn: sqlite3.Connection, poem_id: int) -> bool:
+    """Delete a poem by id. Returns True if a row was deleted."""
+    with conn:
+        cursor = conn.execute("DELETE FROM poems WHERE id = ?", (poem_id,))
+    return cursor.rowcount > 0
+
+
 def iter_embeddings(conn: sqlite3.Connection):
     """Yield (id, title, cleaned_poem_text, vector) for every poem that has an embedding.
 

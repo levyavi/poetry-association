@@ -3,6 +3,7 @@ from __future__ import annotations
 from flask import Flask
 
 from .config import Config
+from .csrf import issue_token as csrf_issue_token
 from .db import init_db
 from .embedding import EmbeddingService
 from .routes.admin import admin_bp
@@ -37,6 +38,8 @@ def create_app(
 
     search_service = SearchService(cfg.db_path, embedding_service)
     app.extensions["search"] = search_service
+
+    app.jinja_env.globals["csrf_token"] = csrf_issue_token
 
     app.register_blueprint(public_bp)
     app.register_blueprint(admin_bp)

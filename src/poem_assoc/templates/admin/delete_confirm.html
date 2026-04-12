@@ -1,0 +1,26 @@
+{% extends "admin/_base.html" %}
+
+{% block title %}Delete Poem{% endblock %}
+
+{% block content %}
+<section class="admin-form-section">
+  <h2 class="admin-section-title">Confirm Deletion</h2>
+
+  <div class="delete-preview">
+    <p class="delete-prompt">Are you sure you want to delete the following poem? This action cannot be undone.</p>
+
+    <div class="delete-poem-card">
+      <h3 class="delete-poem-title">{{ poem["title"] if poem["title"] else "Untitled" }}</h3>
+      <pre class="delete-poem-text">{{ poem["text"][:500] }}{% if poem["text"]|length > 500 %}…{% endif %}</pre>
+    </div>
+
+    <div class="form-actions">
+      <form method="post" action="{{ url_for('admin.delete_poem', poem_id=poem['id']) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn-danger">Delete</button>
+      </form>
+      <a href="{{ url_for('admin.dashboard') }}" class="btn-cancel">Cancel</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

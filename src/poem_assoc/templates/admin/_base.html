@@ -13,6 +13,7 @@
       {% block nav %}
       <nav class="admin-nav">
         <a href="{{ url_for('admin.dashboard') }}" class="admin-nav-link">Dashboard</a>
+        <a href="{{ url_for('admin.add_poem_form') }}" class="admin-nav-link">Add poem</a>
         <form method="post" action="{{ url_for('admin.logout_view') }}" class="logout-form">
           <button type="submit" class="btn-link">Logout</button>
         </form>

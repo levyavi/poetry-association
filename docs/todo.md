@@ -148,27 +148,29 @@ This checklist is the full, sequential set of items needed to build V1, derived 
 
 ## Task 006 — Admin Manual Add / Edit / Delete with Embedding Regeneration
 
+- [x] **006** — complete
+
 ### Modules
-- [ ] `csrf.py` with `issue_token`, `verify_token`, registered Jinja global.
-- [ ] Update `repository.py` with `update_poem`, `delete_poem`, `PoemNotFoundError`.
-- [ ] Update `routes/admin.py` with add / edit / delete views (GET + POST + confirm).
-- [ ] `SearchService.refresh()` called after every successful mutation.
+- [x] `csrf.py` with `issue_token`, `verify_token`, registered Jinja global.
+- [x] Update `repository.py` with `update_poem`, `delete_poem`, `PoemNotFoundError`.
+- [x] Update `routes/admin.py` with add / edit / delete views (GET + POST + confirm).
+- [x] `SearchService.refresh()` called after every successful mutation.
 
 ### Templates
-- [ ] `admin/add.html`.
-- [ ] `admin/edit.html` pre-populated.
-- [ ] `admin/delete_confirm.html` showing preview.
-- [ ] Update dashboard to link add / edit / delete.
-- [ ] Flash messages rendered in `admin/_base.html`.
-- [ ] CSS for forms and confirmation.
+- [x] `admin/add.html`.
+- [x] `admin/edit.html` pre-populated.
+- [x] `admin/delete_confirm.html` showing preview.
+- [x] Update dashboard to link add / edit / delete.
+- [x] Flash messages rendered in `admin/_base.html`.
+- [x] CSS for forms and confirmation.
 
 ### Tests
-- [ ] `test_csrf.py`.
-- [ ] `test_admin_add.py` (success, duplicate blocked, empty text blocked).
-- [ ] `test_admin_edit.py` (success, duplicate blocked, 404 missing).
-- [ ] `test_admin_delete.py` (confirm flow, row removed).
-- [ ] Mutation routes require auth + CSRF.
-- [ ] Observable: admin can fully CRUD poems; changes visible in search.
+- [x] `test_csrf.py`.
+- [x] `test_admin_add.py` (success, duplicate blocked, empty text blocked).
+- [x] `test_admin_edit.py` (success, duplicate blocked, 404 missing).
+- [x] `test_admin_delete.py` (confirm flow, row removed).
+- [x] Mutation routes require auth + CSRF.
+- [x] Observable: admin can fully CRUD poems; changes visible in search.
 
 ---
 

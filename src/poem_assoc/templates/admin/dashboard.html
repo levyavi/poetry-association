@@ -6,6 +6,7 @@
 <section class="admin-dashboard">
   <div class="dashboard-header">
     <h2 class="admin-section-title">Poems <span class="poem-count">({{ poems | length }})</span></h2>
+    <a href="{{ url_for('admin.add_poem_form') }}" class="search-button">Add poem</a>
 
     <form method="get" action="{{ url_for('admin.dashboard') }}" class="sort-form">
       <label for="sort" class="sort-label">Sort by:</label>
@@ -40,8 +41,8 @@
         <td>{{ poem["title"] if poem["title"] else "Untitled" }}</td>
         <td>{{ poem["created_at"] }}</td>
         <td>{{ poem["updated_at"] }}</td>
-        <td><span class="action-placeholder">—</span></td>
-        <td><span class="action-placeholder">—</span></td>
+        <td><a href="{{ url_for('admin.edit_poem_form', poem_id=poem['id']) }}" class="action-link">Edit</a></td>
+        <td><a href="{{ url_for('admin.delete_poem_confirm', poem_id=poem['id']) }}" class="action-link action-link-danger">Delete</a></td>
       </tr>
       {% endfor %}
     </tbody>

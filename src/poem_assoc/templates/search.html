@@ -14,7 +14,9 @@
     >
     <button type="submit" class="search-button">Search</button>
   </form>
-  {% if q %}
+  {% if rebuild_in_progress is defined and rebuild_in_progress %}
+  <p class="rebuild-notice">Search is temporarily disabled while embeddings are being rebuilt.</p>
+  {% elif q %}
   <p class="query-context">Results for: &ldquo;{{ q | e }}&rdquo;</p>
   {% include "_results.html" %}
   {% endif %}

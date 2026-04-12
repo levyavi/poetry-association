@@ -207,25 +207,27 @@ This checklist is the full, sequential set of items needed to build V1, derived 
 
 ## Task 008 — Rebuild All Embeddings with Application Lock
 
+- [x] **008** — complete
+
 ### Modules
-- [ ] `locks.py` with `RebuildLock` (thread-safe acquire/release/is_rebuilding).
-- [ ] `rebuild.py` with `run_rebuild` iterating every poem.
-- [ ] `admin.rebuild_all` POST view (acquire → run → refresh → release).
-- [ ] `public.search` checks lock; returns 503 when rebuilding.
-- [ ] `admin.reject_if_rebuilding` helper wired into every mutation view (add, edit, delete, import preview, confirm, cancel).
+- [x] `locks.py` with `RebuildLock` (thread-safe acquire/release/is_rebuilding).
+- [x] `rebuild.py` with `run_rebuild` iterating every poem.
+- [x] `admin.rebuild_all` POST view (acquire → run → refresh → release).
+- [x] `public.search` checks lock; returns 503 when rebuilding.
+- [x] `admin.reject_if_rebuilding` helper wired into every mutation view (add, edit, delete, import preview, confirm, cancel).
 
 ### Templates
-- [ ] Dashboard `Rebuild all embeddings` button (CSRF).
-- [ ] `admin/rebuild_result.html`.
-- [ ] Rebuild-in-progress banner in `admin/_base.html`.
-- [ ] Search 503 page message.
-- [ ] CSS for banner and result.
+- [x] Dashboard `Rebuild all embeddings` button (CSRF).
+- [x] `admin/rebuild_result.html`.
+- [x] Rebuild-in-progress banner in `admin/_base.html`.
+- [x] Search 503 page message.
+- [x] CSS for banner and result.
 
 ### Tests
-- [ ] `test_locks.py` (acquire/release semantics, second-acquire fails, release-without-acquire safe).
-- [ ] `test_rebuild.py` (all embeddings regenerated, partial failure commits prior rows, row count unchanged).
-- [ ] `test_rebuild_route_gating.py` (search 503, every mutation blocked, second rebuild rejected, lock released on failure).
-- [ ] Observable: rebuild button refreshes every embedding; concurrent search/admin writes are blocked during rebuild.
+- [x] `test_locks.py` (acquire/release semantics, second-acquire fails, release-without-acquire safe).
+- [x] `test_rebuild.py` (all embeddings regenerated, partial failure commits prior rows, row count unchanged).
+- [x] `test_rebuild_route_gating.py` (search 503, every mutation blocked, second rebuild rejected, lock released on failure).
+- [x] Observable: rebuild button refreshes every embedding; concurrent search/admin writes are blocked during rebuild.
 
 ---
 

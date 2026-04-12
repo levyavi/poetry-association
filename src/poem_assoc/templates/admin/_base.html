@@ -23,6 +23,10 @@
     </header>
 
     <main class="admin-main">
+      {% if rebuild_in_progress %}
+      <div class="rebuild-banner">Embedding rebuild in progress &mdash; search and write actions are disabled.</div>
+      {% endif %}
+
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           <ul class="flash-messages">

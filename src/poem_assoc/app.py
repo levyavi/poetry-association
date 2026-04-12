@@ -6,6 +6,7 @@ from .config import Config
 from .csrf import issue_token as csrf_issue_token
 from .db import init_db
 from .embedding import EmbeddingService
+from .locks import RebuildLock
 from .routes.admin import admin_bp
 from .routes.public import public_bp
 from .search import SearchService
@@ -39,7 +40,14 @@ def create_app(
     search_service = SearchService(cfg.db_path, embedding_service)
     app.extensions["search"] = search_service
 
+    rebuild_lock = RebuildLock()
+    app.extensions["rebuild_lock"] = rebuild_lock
+
     app.jinja_env.globals["csrf_token"] = csrf_issue_token
+
+    @app.context_processor
+    def _inject_rebuild_state():
+        return {"rebuild_in_progress": rebuild_lock.is_rebuilding()}
 
     app.register_blueprint(public_bp)
     app.register_blueprint(admin_bp)

@@ -615,6 +615,50 @@ header {
 .import-status-cancelled { color: #7a5900; }
 .import-status-error { color: #721c24; }
 
+/* ── Rebuild ─────────────────────────────────────────────── */
+
+.rebuild-banner {
+  background: #fff3cd;
+  color: #7a5900;
+  padding: 0.6rem 1rem;
+  border-radius: 3px;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.rebuild-notice {
+  margin-top: 1rem;
+  padding: 0.8rem 1rem;
+  background: #fff3cd;
+  color: #7a5900;
+  border-radius: 3px;
+  font-size: 0.95rem;
+}
+
+.rebuild-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #d0cfc8;
+}
+
+.rebuild-heading {
+  font-size: 1.1rem;
+  font-weight: normal;
+  margin-bottom: 0.5rem;
+  color: #2c2c2c;
+}
+
+.rebuild-help {
+  color: #555;
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+}
+
+.rebuild-form {
+  display: inline;
+}
+
 /* ── Responsive ───────────────────────────────────────────── */
 
 @media (max-width: 480px) {

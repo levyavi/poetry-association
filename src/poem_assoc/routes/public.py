@@ -13,6 +13,12 @@ def index():
 
 @public_bp.route("/search", methods=["POST"])
 def search():
+    rebuild_lock = current_app.extensions["rebuild_lock"]
+    if rebuild_lock.is_rebuilding():
+        return render_template(
+            "search.html", q="", results=None, rebuild_in_progress=True
+        ), 503
+
     raw_q = request.form.get("q", "")
     display_q = raw_q.strip()
 

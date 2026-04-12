@@ -1,0 +1,22 @@
+{% extends "admin/_base.html" %}
+
+{% block title %}Rebuild Result{% endblock %}
+
+{% block content %}
+<section class="admin-form-section">
+  <h2 class="admin-section-title">Rebuild Result</h2>
+
+  <div class="import-result-card">
+    {% if result.error %}
+    <p class="import-status-error"><strong>Rebuild stopped with an error.</strong></p>
+    <p>Rebuilt: {{ result.rebuilt }} / {{ result.total }}</p>
+    <p>Error: {{ result.error }}</p>
+    {% else %}
+    <p class="import-status-success"><strong>Rebuild complete.</strong></p>
+    <p>Rebuilt {{ result.rebuilt }} of {{ result.total }} embeddings.</p>
+    {% endif %}
+  </div>
+
+  <a href="{{ url_for('admin.dashboard') }}" class="btn-cancel">Back to dashboard</a>
+</section>
+{% endblock %}

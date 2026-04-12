@@ -50,5 +50,14 @@
   {% else %}
   <p class="no-results">No poems found.</p>
   {% endif %}
+
+  <div class="rebuild-section">
+    <h3 class="rebuild-heading">Maintenance</h3>
+    <p class="rebuild-help">Regenerate all poem embeddings using the current model. Search and admin writes are disabled during the rebuild.</p>
+    <form method="post" action="{{ url_for('admin.rebuild_all') }}" class="rebuild-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn-danger">Rebuild all embeddings</button>
+    </form>
+  </div>
 </section>
 {% endblock %}

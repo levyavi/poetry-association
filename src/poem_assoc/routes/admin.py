@@ -16,7 +16,7 @@ from flask import (
     url_for,
 )
 
-from .. import auth, csv_import, csrf, import_state, repository
+from .. import auth, csv_import, csrf, import_state, rebuild, repository
 from ..csv_import import CsvFormatError
 from ..db import get_connection
 from ..repository import DuplicatePoemError, PoemNotFoundError
@@ -48,6 +48,17 @@ def _verify_csrf_or_abort() -> None:
     """Abort 400 if the submitted CSRF token is missing or invalid."""
     if not csrf.verify_token(request.form.get("csrf_token", "")):
         abort(400, "CSRF token missing or invalid")
+
+
+def _reject_if_rebuilding():
+    """If a rebuild is in progress, flash a message and return a redirect.
+
+    Returns None when idle, or a redirect Response when the lock is held.
+    """
+    lock = current_app.extensions["rebuild_lock"]
+    if lock.is_rebuilding():
+        flash("Rebuild in progress \u2014 write actions are disabled.", "error")
+        return redirect(url_for("admin.dashboard"))
 
 
 @admin_bp.route("/login", methods=["GET", "POST"])
@@ -97,6 +108,8 @@ def add_poem_form():
 @admin_bp.route("/poems", methods=["POST"])
 @auth.login_required
 def add_poem():
+    if (resp := _reject_if_rebuilding()):
+        return resp
     _verify_csrf_or_abort()
 
     title = request.form.get("title", "").strip()
@@ -153,6 +166,8 @@ def edit_poem_form(poem_id: int):
 @admin_bp.route("/poems/<int:poem_id>/edit", methods=["POST"])
 @auth.login_required
 def edit_poem(poem_id: int):
+    if (resp := _reject_if_rebuilding()):
+        return resp
     _verify_csrf_or_abort()
 
     title = request.form.get("title", "").strip()
@@ -212,6 +227,8 @@ def delete_poem_confirm(poem_id: int):
 @admin_bp.route("/poems/<int:poem_id>/delete", methods=["POST"])
 @auth.login_required
 def delete_poem(poem_id: int):
+    if (resp := _reject_if_rebuilding()):
+        return resp
     _verify_csrf_or_abort()
 
     cfg = current_app.config["POEM_CONFIG"]
@@ -243,6 +260,8 @@ def import_upload():
 @admin_bp.route("/import/preview", methods=["POST"])
 @auth.login_required
 def import_preview():
+    if (resp := _reject_if_rebuilding()):
+        return resp
     _verify_csrf_or_abort()
 
     uploaded = request.files.get("csv_file")
@@ -289,6 +308,8 @@ def import_preview():
 @admin_bp.route("/import/confirm", methods=["POST"])
 @auth.login_required
 def import_confirm():
+    if (resp := _reject_if_rebuilding()):
+        return resp
     _verify_csrf_or_abort()
 
     sid = _import_session_id()
@@ -322,6 +343,8 @@ def import_confirm():
 @admin_bp.route("/import/cancel", methods=["POST"])
 @auth.login_required
 def import_cancel():
+    if (resp := _reject_if_rebuilding()):
+        return resp
     _verify_csrf_or_abort()
 
     sid = _import_session_id()
@@ -339,3 +362,37 @@ def import_cancel():
     import_state.discard(sid)
     flash("Import cancelled", "info")
     return redirect(url_for("admin.import_upload"))
+
+
+# ── Rebuild ────────────────────────────────────────────────
+
+@admin_bp.route("/rebuild", methods=["POST"])
+@auth.login_required
+def rebuild_all():
+    _verify_csrf_or_abort()
+
+    lock = current_app.extensions["rebuild_lock"]
+    if not lock.acquire():
+        flash("Rebuild already in progress", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    try:
+        cfg = current_app.config["POEM_CONFIG"]
+        embedding_service = current_app.extensions["embedding"]
+        conn = get_connection(cfg.db_path)
+        try:
+            result = rebuild.run_rebuild(conn, embedding_service)
+        finally:
+            conn.close()
+
+        search_service = current_app.extensions["search"]
+        search_service.refresh()
+    finally:
+        lock.release()
+
+    if result.error:
+        flash(f"Rebuild stopped with error after {result.rebuilt}/{result.total} poems: {result.error}", "error")
+    else:
+        flash(f"Rebuilt {result.rebuilt} embeddings", "success")
+
+    return render_template("admin/rebuild_result.html", result=result)

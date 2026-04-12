@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from poem_assoc.db import get_connection
 from poem_assoc.repository import create_poem
+from poem_assoc.startup_upgrade import UpgradeStatus
 from tests.fixtures import insert_poem_raw, make_embedding_blob
 
 
@@ -124,3 +125,31 @@ def test_search_route_untitled_for_blank_title(client, app, embedding_service):
     assert resp.status_code == 200
     html = resp.data.decode()
     assert "Untitled" in html
+
+
+def test_index_shows_startup_upgrade_message_while_running(app, client, monkeypatch):
+    coordinator = app.extensions["startup_upgrade"]
+    monkeypatch.setattr(coordinator, "status", lambda: UpgradeStatus.running())
+
+    resp = client.get("/")
+
+    assert resp.status_code == 200
+    html = resp.data.decode()
+    assert "Search data is being upgraded." in html
+    assert 'disabled' in html
+
+
+def test_search_route_returns_503_when_startup_upgrade_failed(app, client, monkeypatch):
+    coordinator = app.extensions["startup_upgrade"]
+    monkeypatch.setattr(
+        coordinator,
+        "status",
+        lambda: UpgradeStatus.failed("automatic upgrade failed"),
+    )
+
+    resp = client.post("/search", data={"q": "grief"})
+
+    assert resp.status_code == 503
+    html = resp.data.decode()
+    assert "Search data upgrade failed." in html
+    assert "automatic upgrade failed" in html

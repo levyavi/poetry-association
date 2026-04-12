@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import Flask
+from flask import Flask, render_template, request
 
 from .config import Config
 from .csrf import issue_token as csrf_issue_token
@@ -11,6 +11,7 @@ from .locks import RebuildLock
 from .routes.admin import admin_bp
 from .routes.public import public_bp
 from .search import SearchService
+from .startup_upgrade import StartupUpgradeCoordinator
 
 
 def create_app(
@@ -48,13 +49,46 @@ def create_app(
     rebuild_lock = RebuildLock()
     app.extensions["rebuild_lock"] = rebuild_lock
 
+    startup_upgrade = StartupUpgradeCoordinator(
+        cfg.db_path,
+        embedding_service,
+        lexical_processor,
+        search_service,
+        rebuild_lock,
+    )
+    app.extensions["startup_upgrade"] = startup_upgrade
+
     app.jinja_env.globals["csrf_token"] = csrf_issue_token
 
     @app.context_processor
     def _inject_rebuild_state():
-        return {"rebuild_in_progress": rebuild_lock.is_rebuilding()}
+        startup_status = startup_upgrade.status()
+        rebuild_in_progress = rebuild_lock.is_rebuilding()
+        return {
+            "rebuild_in_progress": rebuild_in_progress,
+            "search_available": (
+                startup_status.is_search_available() and not rebuild_in_progress
+            ),
+            "admin_write_available": (
+                startup_status.is_write_available() and not rebuild_in_progress
+            ),
+            "startup_upgrade_status": startup_status,
+        }
+
+    @app.before_request
+    def _block_search_during_startup_upgrade():
+        if request.endpoint != "public.search":
+            return None
+
+        startup_status = startup_upgrade.status()
+        if startup_status.is_search_available():
+            return None
+
+        display_q = request.form.get("q", "").strip()
+        return render_template("search.html", q=display_q, results=None), 503
 
     app.register_blueprint(public_bp)
     app.register_blueprint(admin_bp)
+    startup_upgrade.begin_if_needed()
 
     return app

@@ -6,7 +6,11 @@
 <section class="admin-dashboard">
   <div class="dashboard-header">
     <h2 class="admin-section-title">Poems <span class="poem-count">({{ poems | length }})</span></h2>
+    {% if admin_write_available %}
     <a href="{{ url_for('admin.add_poem_form') }}" class="search-button">Add poem</a>
+    {% else %}
+    <span class="search-button button-disabled" aria-disabled="true">Add poem</span>
+    {% endif %}
 
     <form method="get" action="{{ url_for('admin.dashboard') }}" class="sort-form">
       <label for="sort" class="sort-label">Sort by:</label>
@@ -41,8 +45,13 @@
         <td>{{ poem["title"] if poem["title"] else "Untitled" }}</td>
         <td>{{ poem["created_at"] }}</td>
         <td>{{ poem["updated_at"] }}</td>
+        {% if admin_write_available %}
         <td><a href="{{ url_for('admin.edit_poem_form', poem_id=poem['id']) }}" class="action-link">Edit</a></td>
         <td><a href="{{ url_for('admin.delete_poem_confirm', poem_id=poem['id']) }}" class="action-link action-link-danger">Delete</a></td>
+        {% else %}
+        <td><span class="action-link action-link-disabled" aria-disabled="true">Edit</span></td>
+        <td><span class="action-link action-link-disabled" aria-disabled="true">Delete</span></td>
+        {% endif %}
       </tr>
       {% endfor %}
     </tbody>
@@ -53,10 +62,24 @@
 
   <div class="rebuild-section">
     <h3 class="rebuild-heading">Maintenance</h3>
+    {% if startup_upgrade_status.state == "failed" %}
+    <p class="rebuild-help">Startup upgrade failed. Retry the rebuild here to restore search availability.</p>
+    {% elif startup_upgrade_status.state == "running" %}
+    <p class="rebuild-help">Search data is being upgraded automatically. Admin writes stay disabled until it finishes.</p>
+    {% else %}
     <p class="rebuild-help">Regenerate all poem embeddings using the current model. Search and admin writes are disabled during the rebuild.</p>
+    {% endif %}
     <form method="post" action="{{ url_for('admin.rebuild_all') }}" class="rebuild-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn-danger">Rebuild all embeddings</button>
+      <button type="submit" class="btn-danger" {% if rebuild_in_progress %}disabled{% endif %}>
+        {% if startup_upgrade_status.state == "failed" %}
+        Retry rebuild all embeddings
+        {% elif rebuild_in_progress %}
+        Rebuild in progress
+        {% else %}
+        Rebuild all embeddings
+        {% endif %}
+      </button>
     </form>
   </div>
 </section>

@@ -2,6 +2,7 @@
 
 {% block content %}
 <section class="search-section">
+  {% set startup_state = startup_upgrade_status.state %}
   <form method="post" action="/search" class="search-form">
     <input
       type="text"
@@ -11,10 +12,25 @@
       autofocus
       class="search-input"
       aria-label="Search query"
+      {% if not search_available %}disabled{% endif %}
     >
-    <button type="submit" class="search-button">Search</button>
+    <button type="submit" class="search-button" {% if not search_available %}disabled{% endif %}>Search</button>
   </form>
-  {% if rebuild_in_progress is defined and rebuild_in_progress %}
+
+  {% if startup_state == "running" %}
+  <div class="status-panel status-panel-warning">
+    <p>Search data is being upgraded.</p>
+    <p>Search will return automatically when the rebuild finishes.</p>
+  </div>
+  {% elif startup_state == "failed" %}
+  <div class="status-panel status-panel-error">
+    <p>Search data upgrade failed.</p>
+    {% if startup_upgrade_status.detail %}
+    <p>{{ startup_upgrade_status.detail }}</p>
+    {% endif %}
+    <p>Search stays disabled until an admin retries the rebuild or restarts the app.</p>
+  </div>
+  {% elif rebuild_in_progress is defined and rebuild_in_progress %}
   <p class="rebuild-notice">Search is temporarily disabled while embeddings are being rebuilt.</p>
   {% elif q %}
   <p class="query-context">Results for: &ldquo;{{ q | e }}&rdquo;</p>

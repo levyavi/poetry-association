@@ -13,8 +13,13 @@
       {% block nav %}
       <nav class="admin-nav">
         <a href="{{ url_for('admin.dashboard') }}" class="admin-nav-link">Dashboard</a>
+        {% if admin_write_available %}
         <a href="{{ url_for('admin.add_poem_form') }}" class="admin-nav-link">Add poem</a>
         <a href="{{ url_for('admin.import_upload') }}" class="admin-nav-link">Import CSV</a>
+        {% else %}
+        <span class="admin-nav-link admin-nav-link-disabled" aria-disabled="true">Add poem</span>
+        <span class="admin-nav-link admin-nav-link-disabled" aria-disabled="true">Import CSV</span>
+        {% endif %}
         <form method="post" action="{{ url_for('admin.logout_view') }}" class="logout-form">
           <button type="submit" class="btn-link">Logout</button>
         </form>
@@ -23,8 +28,18 @@
     </header>
 
     <main class="admin-main">
-      {% if rebuild_in_progress %}
-      <div class="rebuild-banner">Embedding rebuild in progress &mdash; search and write actions are disabled.</div>
+      {% if startup_upgrade_status.state == "running" %}
+      <div class="upgrade-banner">Search data is being upgraded. Admin is read-only until the rebuild finishes.</div>
+      {% elif startup_upgrade_status.state == "failed" %}
+      <div class="upgrade-banner upgrade-banner-error">
+        Startup search-data upgrade failed.
+        {% if startup_upgrade_status.detail %}
+        {{ startup_upgrade_status.detail }}
+        {% endif %}
+        Use "Rebuild all embeddings" to retry.
+      </div>
+      {% elif rebuild_in_progress %}
+      <div class="rebuild-banner">Embedding rebuild in progress - search and write actions are disabled.</div>
       {% endif %}
 
       {% with messages = get_flashed_messages(with_categories=true) %}

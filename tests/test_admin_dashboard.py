@@ -4,6 +4,7 @@ import pytest
 from poem_assoc.app import create_app
 from poem_assoc.config import Config
 from poem_assoc import repository
+from poem_assoc.startup_upgrade import UpgradeStatus
 
 TEST_PASSWORD = "test-pass"
 
@@ -139,6 +140,42 @@ class TestDashboardList:
         assert resp.status_code == 200
         html = resp.data.decode()
         assert html.index("Alpha") < html.index("Zeta")
+
+    def test_dashboard_stays_visible_but_read_only_during_startup_upgrade(
+        self, app, client, monkeypatch
+    ):
+        cfg = app.config["POEM_CONFIG"]
+        _insert_poem(cfg.db_path, "Legacy")
+
+        coordinator = app.extensions["startup_upgrade"]
+        monkeypatch.setattr(coordinator, "status", lambda: UpgradeStatus.running())
+
+        _login(client)
+        resp = client.get("/admin/")
+
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        assert "Search data is being upgraded. Admin is read-only until the rebuild finishes." in html
+        assert 'aria-disabled="true">Add poem<' in html
+        assert 'aria-disabled="true">Edit<' in html
+
+    def test_dashboard_shows_retry_rebuild_after_startup_upgrade_failure(
+        self, app, client, monkeypatch
+    ):
+        coordinator = app.extensions["startup_upgrade"]
+        monkeypatch.setattr(
+            coordinator,
+            "status",
+            lambda: UpgradeStatus.failed("automatic upgrade failed"),
+        )
+
+        _login(client)
+        resp = client.get("/admin/")
+
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        assert "Startup search-data upgrade failed." in html
+        assert "Retry rebuild all embeddings" in html
 
 
 # ---------------------------------------------------------------------------

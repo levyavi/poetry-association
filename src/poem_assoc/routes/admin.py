@@ -59,9 +59,20 @@ def _verify_csrf_or_abort() -> None:
 
 def _reject_if_rebuilding():
     """If a rebuild is in progress, flash a message and return a redirect."""
+    startup_status = current_app.extensions["startup_upgrade"].status()
+    if not startup_status.is_write_available():
+        if startup_status.state == "running":
+            flash("Search data is still being upgraded - write actions are disabled.", "error")
+        else:
+            flash(
+                "Startup search-data upgrade failed - retry the rebuild before changing poems.",
+                "error",
+            )
+        return redirect(url_for("admin.dashboard"))
+
     lock = current_app.extensions["rebuild_lock"]
     if lock.is_rebuilding():
-        flash("Rebuild in progress — write actions are disabled.", "error")
+        flash("Rebuild in progress - write actions are disabled.", "error")
         return redirect(url_for("admin.dashboard"))
 
 
@@ -389,6 +400,7 @@ def rebuild_all():
     _verify_csrf_or_abort()
 
     lock = current_app.extensions["rebuild_lock"]
+    startup_upgrade = current_app.extensions["startup_upgrade"]
     if not lock.acquire():
         flash("Rebuild already in progress", "error")
         return redirect(url_for("admin.dashboard"))
@@ -403,8 +415,14 @@ def rebuild_all():
         finally:
             conn.close()
 
-        search_service = current_app.extensions["search"]
-        search_service.refresh()
+        if result.succeeded:
+            search_service = current_app.extensions["search"]
+            search_service.refresh()
+            startup_upgrade.mark_ready()
+        elif startup_upgrade.status().state == "failed":
+            startup_upgrade.mark_failed(
+                f"Automatic startup upgrade failed after {result.rebuilt}/{result.total} poems: {result.error}"
+            )
     finally:
         lock.release()
 

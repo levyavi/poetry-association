@@ -58,6 +58,12 @@ header {
   border-color: #4a7fa5;
 }
 
+.search-input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background: #f3f2ec;
+}
+
 .search-button {
   padding: 0.6rem 1.2rem;
   font-size: 1rem;
@@ -71,6 +77,29 @@ header {
 
 .search-button:hover {
   background: #3a6f95;
+}
+
+.search-button:disabled,
+.btn-danger:disabled,
+.button-disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.search-button:disabled,
+.btn-danger:disabled {
+  background: #7f99ad;
+}
+
+.search-button:disabled:hover,
+.btn-danger:disabled:hover,
+.button-disabled:hover {
+  background: #7f99ad;
+}
+
+.button-disabled {
+  display: inline-block;
+  pointer-events: none;
 }
 
 .query-context {
@@ -347,6 +376,17 @@ header {
 .flash-error   { background: #f8d7da; color: #721c24; }
 .flash-info    { background: #d1ecf1; color: #0c5460; }
 
+.admin-nav-link-disabled,
+.action-link-disabled {
+  color: #8b8577;
+  text-decoration: none;
+  cursor: not-allowed;
+}
+
+.admin-nav-link-disabled {
+  font-size: 0.95rem;
+}
+
 /* Login form */
 .admin-login {
   max-width: 360px;
@@ -615,8 +655,33 @@ header {
 .import-status-cancelled { color: #7a5900; }
 .import-status-error { color: #721c24; }
 
+.status-panel {
+  margin-top: 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 0.95rem;
+}
+
+.status-panel p {
+  margin: 0.25rem 0;
+}
+
+.status-panel-warning {
+  background: #fff3cd;
+  border-color: #e6d28a;
+  color: #7a5900;
+}
+
+.status-panel-error {
+  background: #f8d7da;
+  border-color: #ebb9bf;
+  color: #721c24;
+}
+
 /* ── Rebuild ─────────────────────────────────────────────── */
 
+.upgrade-banner,
 .rebuild-banner {
   background: #fff3cd;
   color: #7a5900;
@@ -625,6 +690,11 @@ header {
   margin-bottom: 1rem;
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.upgrade-banner-error {
+  background: #f8d7da;
+  color: #721c24;
 }
 
 .rebuild-notice {

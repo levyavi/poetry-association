@@ -18,6 +18,11 @@ class RebuildResult:
     total: int
     rebuilt: int
     error: str | None = None
+    rebuilt_at: str | None = None
+
+    @property
+    def succeeded(self) -> bool:
+        return self.error is None
 
 
 def run_rebuild(
@@ -56,4 +61,4 @@ def run_rebuild(
 
     rebuilt_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     mark_rebuild_success(conn, SEARCH_INDEX_VERSION, rebuilt_at)
-    return RebuildResult(total=total, rebuilt=rebuilt)
+    return RebuildResult(total=total, rebuilt=rebuilt, rebuilt_at=rebuilt_at)

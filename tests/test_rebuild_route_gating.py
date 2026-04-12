@@ -3,6 +3,7 @@
 import numpy as np
 
 from poem_assoc.db import get_connection, init_db
+from poem_assoc.startup_upgrade import UpgradeStatus
 from poem_assoc.text_cleaning import clean_poem_text, compute_dedup_key
 
 
@@ -139,6 +140,33 @@ class TestAdminMutationsBlockedDuringRebuild:
         finally:
             lock.release()
 
+    def test_add_blocked_when_startup_upgrade_running(self, app, client, monkeypatch):
+        coordinator = app.extensions["startup_upgrade"]
+        monkeypatch.setattr(coordinator, "status", lambda: UpgradeStatus.running())
+        _login(client)
+
+        resp = client.post(
+            "/admin/poems",
+            data={"title": "X", "text": "Y", "csrf_token": "x"},
+            follow_redirects=True,
+        )
+
+        assert resp.status_code == 200
+        assert b"Search data is still being upgraded" in resp.data
+
+    def test_import_preview_blocked_when_startup_upgrade_failed(self, app, client):
+        app.extensions["startup_upgrade"].mark_failed("automatic upgrade failed")
+        _login(client)
+
+        resp = client.post(
+            "/admin/import/preview",
+            data={"csrf_token": "x"},
+            follow_redirects=True,
+        )
+
+        assert resp.status_code == 200
+        assert b"retry the rebuild before changing poems" in resp.data
+
 
 class TestRebuildRoute:
     def test_rebuild_requires_auth(self, client):
@@ -201,6 +229,20 @@ class TestRebuildRoute:
         assert not lock.is_rebuilding()
         assert lock.acquire() is True  # Can re-acquire
         lock.release()
+
+    def test_manual_rebuild_retry_allowed_after_startup_upgrade_failure(
+        self, app, client, embedding_service
+    ):
+        _seed_poem(app, embedding_service, "Legacy", "Leaves were falling")
+        app.extensions["startup_upgrade"].mark_failed("automatic upgrade failed")
+        _login(client)
+        token = _get_csrf_token(client)
+
+        resp = client.post("/admin/rebuild", data={"csrf_token": token})
+
+        assert resp.status_code == 200
+        assert b"Rebuild complete" in resp.data
+        assert app.extensions["startup_upgrade"].status().state == "ready"
 
 
 class TestDashboardRebuildButton:

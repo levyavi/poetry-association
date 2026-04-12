@@ -67,41 +67,41 @@ The authoritative scope is [`docs/poetry_association_tool_v2_design_document.md`
 
 ## Task 010 — Automatic Startup Rebuild for Outdated Search Indexes
 
-- [ ] **010** complete
+- [x] **010** complete
 
 ### Source modules
-- [ ] Create `src/poem_assoc/startup_upgrade.py`.
-- [ ] Update `src/poem_assoc/app.py` to register and start the startup-upgrade coordinator.
-- [ ] Update `src/poem_assoc/rebuild.py` with the status/result details needed by automatic rebuild.
-- [ ] Update `src/poem_assoc/routes/public.py` to surface upgrade status and block search submissions while unavailable.
-- [ ] Update `src/poem_assoc/routes/admin.py` to block admin writes during startup upgrade while keeping read-only visibility.
+- [x] Create `src/poem_assoc/startup_upgrade.py`.
+- [x] Update `src/poem_assoc/app.py` to register and start the startup-upgrade coordinator.
+- [x] Update `src/poem_assoc/rebuild.py` with the status/result details needed by automatic rebuild.
+- [x] Update `src/poem_assoc/routes/public.py` to surface upgrade status and block search submissions while unavailable.
+- [x] Update `src/poem_assoc/routes/admin.py` to block admin writes during startup upgrade while keeping read-only visibility.
 
 ### Templates and styles
-- [ ] Update `templates/search.html` with upgrade-in-progress and upgrade-failed states.
-- [ ] Update `templates/admin/_base.html` with a persistent upgrade banner.
-- [ ] Update `templates/admin/dashboard.html` so the explicit rebuild action is the retry path after failure.
-- [ ] Update `static/css/styles.css` with upgrade status styles.
+- [x] Update `templates/search.html` with upgrade-in-progress and upgrade-failed states.
+- [x] Update `templates/admin/_base.html` with a persistent upgrade banner.
+- [x] Update `templates/admin/dashboard.html` so the explicit rebuild action is the retry path after failure.
+- [x] Update `static/css/styles.css` with upgrade status styles.
 
 ### Upgrade behavior
-- [ ] Detect legacy/outdated `search_index_version` on startup.
-- [ ] Launch automatic rebuild exactly once per process when required.
-- [ ] Keep public search disabled while upgrade is running.
-- [ ] Keep admin writes disabled while upgrade is running.
-- [ ] Keep search disabled if startup rebuild fails.
-- [ ] Refresh the in-memory search cache on successful startup rebuild.
-- [ ] Update metadata to current only after success.
+- [x] Detect legacy/outdated `search_index_version` on startup.
+- [x] Launch automatic rebuild exactly once per process when required.
+- [x] Keep public search disabled while upgrade is running.
+- [x] Keep admin writes disabled while upgrade is running.
+- [x] Keep search disabled if startup rebuild fails.
+- [x] Refresh the in-memory search cache on successful startup rebuild.
+- [x] Update metadata to current only after success.
 
 ### Tests
-- [ ] Create `tests/test_startup_upgrade.py`.
-- [ ] Update public route tests for startup-upgrade availability states.
-- [ ] Update admin dashboard tests for read-only visibility during upgrade.
-- [ ] Update rebuild route gating tests for startup-upgrade blocking.
-- [ ] Verify success, failure, retry, and no-op-current-version cases.
+- [x] Create `tests/test_startup_upgrade.py`.
+- [x] Update public route tests for startup-upgrade availability states.
+- [x] Update admin dashboard tests for read-only visibility during upgrade.
+- [x] Update rebuild route gating tests for startup-upgrade blocking.
+- [x] Verify success, failure, retry, and no-op-current-version cases.
 
 ### Observable verification
-- [ ] Old installs show `search data is being upgraded` on startup.
-- [ ] Search/admin writes remain blocked until rebuild succeeds.
-- [ ] Failure state is surfaced clearly and remains blocked until retry.
+- [x] Old installs show `search data is being upgraded` on startup.
+- [x] Search/admin writes remain blocked until rebuild succeeds.
+- [x] Failure state is surfaced clearly and remains blocked until retry.
 
 ---
 

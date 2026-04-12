@@ -1,11 +1,11 @@
 import pytest
+
 from poem_assoc import repository
 from poem_assoc.db import get_connection
 
 
 def test_poem_route_returns_json(client, app):
     """Test that GET /poems/<id> returns JSON with the expected structure."""
-    # Create a poem
     cfg = app.config["POEM_CONFIG"]
     conn = get_connection(cfg.db_path)
     try:
@@ -14,11 +14,11 @@ def test_poem_route_returns_json(client, app):
             "Test Poem",
             "Line 1\nLine 2\nLine 3",
             app.extensions["embedding"],
+            app.extensions["lexical"],
         )
     finally:
         conn.close()
 
-    # Fetch the poem
     response = client.get(f"/poems/{poem_id}")
     assert response.status_code == 200
     assert response.content_type == "application/json"
@@ -37,7 +37,6 @@ def test_poem_route_404_for_missing(client):
 
 def test_poem_route_untitled_title_stored_as_empty(client, app):
     """Test that poems with empty title are stored and retrieved correctly."""
-    # Create a poem with empty title
     cfg = app.config["POEM_CONFIG"]
     conn = get_connection(cfg.db_path)
     try:
@@ -46,11 +45,11 @@ def test_poem_route_untitled_title_stored_as_empty(client, app):
             "",
             "Untitled poem text",
             app.extensions["embedding"],
+            app.extensions["lexical"],
         )
     finally:
         conn.close()
 
-    # Fetch the poem
     response = client.get(f"/poems/{poem_id}")
     assert response.status_code == 200
 
@@ -70,6 +69,7 @@ def test_poem_route_preserves_line_breaks(client, app):
             "Multiline Poem",
             poem_text,
             app.extensions["embedding"],
+            app.extensions["lexical"],
         )
     finally:
         conn.close()
@@ -79,5 +79,4 @@ def test_poem_route_preserves_line_breaks(client, app):
 
     data = response.get_json()
     assert data["text"] == poem_text
-    # Verify newlines are preserved
     assert "\n" in data["text"]

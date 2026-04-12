@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import numpy as np
 
 from .embedding import EmbeddingService
+from .lexical import LexicalTextProcessor
 from .text_cleaning import clean_poem_text, compute_dedup_key
 
 
@@ -27,24 +28,26 @@ def create_poem(
     title: str,
     text: str,
     embedding_service: EmbeddingService,
+    lexical_processor: LexicalTextProcessor,
 ) -> int:
-    """Insert a poem with cleaned text and embedding. Raises DuplicatePoemError
-    on duplicate cleaned text."""
+    """Insert a poem with cleaned text, lexical text, and embedding."""
     cleaned = clean_poem_text(text)
     dedup = compute_dedup_key(cleaned)
 
     if find_by_cleaned_text(conn, dedup) is not None:
         raise DuplicatePoemError("Duplicate poem detected (dedup key match)")
 
+    search_text = lexical_processor.build_search_text(title, text)
     vector = embedding_service.encode(title, cleaned)
     blob = embedding_service.to_bytes(vector)
 
     now = _utcnow()
     with conn:
         cursor = conn.execute(
-            "INSERT INTO poems (title, text, cleaned_text, embedding, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (title, text, dedup, blob, now, now),
+            "INSERT INTO poems "
+            "(title, text, cleaned_text, lemmatized_search_text, embedding, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (title, text, dedup, search_text, blob, now, now),
         )
     return cursor.lastrowid
 
@@ -55,11 +58,11 @@ def get_poem(conn: sqlite3.Connection, poem_id: int) -> sqlite3.Row | None:
 
 
 _SORT_MAP: dict[str, str] = {
-    "title_asc":    "title COLLATE NOCASE ASC, id ASC",
-    "title_desc":   "title COLLATE NOCASE DESC, id DESC",
-    "created_asc":  "created_at ASC, id ASC",
+    "title_asc": "title COLLATE NOCASE ASC, id ASC",
+    "title_desc": "title COLLATE NOCASE DESC, id DESC",
+    "created_asc": "created_at ASC, id ASC",
     "created_desc": "created_at DESC, id DESC",
-    "updated_asc":  "updated_at ASC, id ASC",
+    "updated_asc": "updated_at ASC, id ASC",
     "updated_desc": "updated_at DESC, id DESC",
 }
 
@@ -67,10 +70,7 @@ _SORT_MAP: dict[str, str] = {
 def list_poems(
     conn: sqlite3.Connection, order_by: str = "title_asc"
 ) -> list[sqlite3.Row]:
-    """Return all poems ordered by the provided sort key.
-
-    Raises ValueError for an unrecognised *order_by* value.
-    """
+    """Return all poems ordered by the provided sort key."""
     if order_by not in _SORT_MAP:
         raise ValueError(f"Unknown sort key: {order_by!r}")
     sql_order = _SORT_MAP[order_by]
@@ -92,14 +92,9 @@ def update_poem(
     title: str,
     text: str,
     embedding_service: EmbeddingService,
+    lexical_processor: LexicalTextProcessor,
 ) -> sqlite3.Row:
-    """Update a poem's title and text, enforcing duplicate rules and
-    regenerating the embedding when content changes.
-
-    Returns the updated row.
-    Raises PoemNotFoundError if the id does not exist.
-    Raises DuplicatePoemError if another row has the same cleaned text.
-    """
+    """Update a poem's title and text, regenerating all derived fields."""
     existing = get_poem(conn, poem_id)
     if existing is None:
         raise PoemNotFoundError(f"No poem with id {poem_id}")
@@ -114,14 +109,15 @@ def update_poem(
     content_changed = (existing["title"] != title) or (existing["text"] != text)
 
     if content_changed:
+        search_text = lexical_processor.build_search_text(title, text)
         vector = embedding_service.encode(title, cleaned)
         blob = embedding_service.to_bytes(vector)
         now = _utcnow()
         with conn:
             conn.execute(
                 "UPDATE poems SET title = ?, text = ?, cleaned_text = ?, "
-                "embedding = ?, updated_at = ? WHERE id = ?",
-                (title, text, dedup, blob, now, poem_id),
+                "lemmatized_search_text = ?, embedding = ?, updated_at = ? WHERE id = ?",
+                (title, text, dedup, search_text, blob, now, poem_id),
             )
     # If nothing changed, don't bump updated_at
 
@@ -136,11 +132,7 @@ def delete_poem(conn: sqlite3.Connection, poem_id: int) -> bool:
 
 
 def iter_embeddings(conn: sqlite3.Connection):
-    """Yield (id, title, cleaned_poem_text, vector) for every poem that has an embedding.
-
-    The third element is derived from clean_poem_text(text) — the line-break-preserving
-    form suitable for preview extraction, not the dedup key stored in cleaned_text.
-    """
+    """Yield (id, title, cleaned_poem_text, vector) for every poem that has an embedding."""
     rows = conn.execute(
         "SELECT id, title, text, embedding FROM poems WHERE embedding IS NOT NULL"
     ).fetchall()
@@ -148,4 +140,6 @@ def iter_embeddings(conn: sqlite3.Connection):
         blob: bytes = row["embedding"]
         (dim,) = struct.unpack("<I", blob[:4])
         vec = np.frombuffer(blob[4:], dtype=np.float32).copy()
+        if len(vec) != dim:
+            raise ValueError(f"Embedding blob dimension mismatch for poem {row['id']}")
         yield (row["id"], row["title"], clean_poem_text(row["text"]), vec)

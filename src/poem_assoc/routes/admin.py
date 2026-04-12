@@ -40,7 +40,14 @@ def _housekeeping():
 
 
 _VALID_SORTS = frozenset(
-    {"title_asc", "title_desc", "created_asc", "created_desc", "updated_asc", "updated_desc"}
+    {
+        "title_asc",
+        "title_desc",
+        "created_asc",
+        "created_desc",
+        "updated_asc",
+        "updated_desc",
+    }
 )
 
 
@@ -51,13 +58,10 @@ def _verify_csrf_or_abort() -> None:
 
 
 def _reject_if_rebuilding():
-    """If a rebuild is in progress, flash a message and return a redirect.
-
-    Returns None when idle, or a redirect Response when the lock is held.
-    """
+    """If a rebuild is in progress, flash a message and return a redirect."""
     lock = current_app.extensions["rebuild_lock"]
     if lock.is_rebuilding():
-        flash("Rebuild in progress \u2014 write actions are disabled.", "error")
+        flash("Rebuild in progress — write actions are disabled.", "error")
         return redirect(url_for("admin.dashboard"))
 
 
@@ -99,6 +103,7 @@ def dashboard():
 
 # ── Add ──────────────────────────────────────────────────────────
 
+
 @admin_bp.route("/poems/new", methods=["GET"])
 @auth.login_required
 def add_poem_form():
@@ -121,14 +126,17 @@ def add_poem():
 
     cfg = current_app.config["POEM_CONFIG"]
     embedding_service = current_app.extensions["embedding"]
+    lexical_processor = current_app.extensions["lexical"]
     conn = get_connection(cfg.db_path)
     try:
-        repository.create_poem(conn, title, text, embedding_service)
+        repository.create_poem(
+            conn, title, text, embedding_service, lexical_processor
+        )
     except DuplicatePoemError:
         flash("A poem with this cleaned text already exists", "error")
         return render_template("admin/add.html", title=title, text=text), 422
-    except Exception:
-        flash("Failed to generate embedding — poem not saved", "error")
+    except Exception as exc:
+        flash(f"Failed to generate search data — poem not saved: {exc}", "error")
         return render_template("admin/add.html", title=title, text=text), 500
     finally:
         conn.close()
@@ -141,6 +149,7 @@ def add_poem():
 
 
 # ── Edit ─────────────────────────────────────────────────────────
+
 
 @admin_bp.route("/poems/<int:poem_id>/edit", methods=["GET"])
 @auth.login_required
@@ -181,9 +190,17 @@ def edit_poem(poem_id: int):
 
     cfg = current_app.config["POEM_CONFIG"]
     embedding_service = current_app.extensions["embedding"]
+    lexical_processor = current_app.extensions["lexical"]
     conn = get_connection(cfg.db_path)
     try:
-        repository.update_poem(conn, poem_id, title, text, embedding_service)
+        repository.update_poem(
+            conn,
+            poem_id,
+            title,
+            text,
+            embedding_service,
+            lexical_processor,
+        )
     except PoemNotFoundError:
         abort(404)
     except DuplicatePoemError:
@@ -191,8 +208,8 @@ def edit_poem(poem_id: int):
         return render_template(
             "admin/edit.html", poem_id=poem_id, title=title, text=text
         ), 422
-    except Exception:
-        flash("Failed to generate embedding — poem not saved", "error")
+    except Exception as exc:
+        flash(f"Failed to generate search data — poem not saved: {exc}", "error")
         return render_template(
             "admin/edit.html", poem_id=poem_id, title=title, text=text
         ), 500
@@ -207,6 +224,7 @@ def edit_poem(poem_id: int):
 
 
 # ── Delete ───────────────────────────────────────────────────────
+
 
 @admin_bp.route("/poems/<int:poem_id>/delete", methods=["GET"])
 @auth.login_required
@@ -251,6 +269,7 @@ def delete_poem(poem_id: int):
 
 # ── CSV Import ──────────────────────────────────────────────────
 
+
 @admin_bp.route("/import", methods=["GET"])
 @auth.login_required
 def import_upload():
@@ -284,7 +303,6 @@ def import_preview():
     try:
         plan = csv_import.plan(conn, temp_path)
     except CsvFormatError as exc:
-        # Clean up temp file on bad CSV
         try:
             os.unlink(temp_path)
         except FileNotFoundError:
@@ -320,12 +338,14 @@ def import_confirm():
 
     cfg = current_app.config["POEM_CONFIG"]
     embedding_service = current_app.extensions["embedding"]
+    lexical_processor = current_app.extensions["lexical"]
     conn = get_connection(cfg.db_path)
     try:
         result = csv_import.execute(
             conn,
             sess.plan,
             embedding_service,
+            lexical_processor,
             cancel_flag=sess.is_cancelled,
         )
     finally:
@@ -351,20 +371,17 @@ def import_cancel():
     sess = import_state.get(sid)
 
     if sess is None:
-        # Nothing in-flight — just redirect
         flash("No active import to cancel", "info")
         return redirect(url_for("admin.import_upload"))
 
     sess.cancel()
-    # If the import is still in-flight (synchronous, so this cancel is from
-    # a separate request/tab), the execute loop will notice on its next iteration.
-    # If the import hasn't started yet (preview stage), discard state and go back.
     import_state.discard(sid)
     flash("Import cancelled", "info")
     return redirect(url_for("admin.import_upload"))
 
 
 # ── Rebuild ────────────────────────────────────────────────
+
 
 @admin_bp.route("/rebuild", methods=["POST"])
 @auth.login_required
@@ -379,9 +396,10 @@ def rebuild_all():
     try:
         cfg = current_app.config["POEM_CONFIG"]
         embedding_service = current_app.extensions["embedding"]
+        lexical_processor = current_app.extensions["lexical"]
         conn = get_connection(cfg.db_path)
         try:
-            result = rebuild.run_rebuild(conn, embedding_service)
+            result = rebuild.run_rebuild(conn, embedding_service, lexical_processor)
         finally:
             conn.close()
 
@@ -391,8 +409,11 @@ def rebuild_all():
         lock.release()
 
     if result.error:
-        flash(f"Rebuild stopped with error after {result.rebuilt}/{result.total} poems: {result.error}", "error")
+        flash(
+            f"Rebuild stopped with error after {result.rebuilt}/{result.total} poems: {result.error}",
+            "error",
+        )
     else:
-        flash(f"Rebuilt {result.rebuilt} embeddings", "success")
+        flash(f"Rebuilt {result.rebuilt} poems", "success")
 
     return render_template("admin/rebuild_result.html", result=result)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import secrets
 from dataclasses import dataclass
+from importlib import resources
 
 
 @dataclass
@@ -12,6 +13,7 @@ class Config:
     admin_password: str
     model_name: str
     model_path: str | None
+    nltk_data_path: str = ""
     import_temp_dir: str = ""
 
     def __post_init__(self) -> None:
@@ -19,6 +21,11 @@ class Config:
             self.import_temp_dir = os.path.join(
                 os.path.dirname(self.db_path) or ".", "_import_tmp"
             )
+        if not self.nltk_data_path:
+            self.nltk_data_path = os.fspath(
+                resources.files("poem_assoc").joinpath("resources", "nltk_data")
+            )
+        self.nltk_data_path = os.path.abspath(self.nltk_data_path)
 
     @classmethod
     def from_environment(cls) -> "Config":
@@ -28,5 +35,6 @@ class Config:
             admin_password=os.environ.get("POEM_ADMIN_PASSWORD", ""),
             model_name=os.environ.get("POEM_MODEL_NAME", "all-MiniLM-L6-v2"),
             model_path=os.environ.get("POEM_MODEL_PATH") or None,
+            nltk_data_path=os.environ.get("POEM_NLTK_DATA_PATH", ""),
             import_temp_dir=os.environ.get("POEM_IMPORT_TEMP_DIR", ""),
         )

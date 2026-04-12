@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from .embedding import EmbeddingService
+from .lexical import LexicalTextProcessor
 from .repository import DuplicatePoemError, create_poem, find_by_cleaned_text
 from .text_cleaning import clean_poem_text, compute_dedup_key
 
@@ -44,11 +45,7 @@ class ImportResult:
 
 
 def plan(conn, csv_path_or_stream) -> ImportPlan:
-    """Parse a strict CSV, classify rows as importable or duplicate.
-
-    Checks against both the existing DB and prior rows in the same file.
-    Read-only — no DB writes.
-    """
+    """Parse a strict CSV, classify rows as importable or duplicate."""
     if isinstance(csv_path_or_stream, (str, os.PathLike)):
         filename = os.path.basename(str(csv_path_or_stream))
         fh = open(csv_path_or_stream, "r", encoding="utf-8-sig", newline="")
@@ -82,14 +79,11 @@ def plan(conn, csv_path_or_stream) -> ImportPlan:
                 continue  # skip blank trailing lines
 
             if not text:
-                raise CsvFormatError(
-                    f"Row {row_num}: poem text is empty"
-                )
+                raise CsvFormatError(f"Row {row_num}: poem text is empty")
 
             cleaned = clean_poem_text(text)
             dedup = compute_dedup_key(cleaned)
 
-            # Check against DB and in-file duplicates
             if dedup in seen_keys or find_by_cleaned_text(conn, dedup) is not None:
                 result.duplicate_count += 1
             else:
@@ -113,14 +107,11 @@ def execute(
     conn,
     import_plan: ImportPlan,
     embedding_service: EmbeddingService,
+    lexical_processor: LexicalTextProcessor,
     cancel_flag: Callable[[], bool] | None = None,
     on_progress: Callable[[int, int], None] | None = None,
 ) -> ImportResult:
-    """Walk the import plan row-by-row, inserting each poem.
-
-    Checks cancel_flag before each row. Prior rows remain committed on
-    cancellation or error (per design doc §6.3.2).
-    """
+    """Walk the import plan row-by-row, inserting each poem."""
     result = ImportResult(skipped_duplicates=import_plan.duplicate_count)
     total = len(import_plan.importable_rows)
 
@@ -130,7 +121,7 @@ def execute(
             break
 
         try:
-            create_poem(conn, row.title, row.text, embedding_service)
+            create_poem(conn, row.title, row.text, embedding_service, lexical_processor)
             result.imported += 1
         except DuplicatePoemError:
             result.skipped_duplicates += 1

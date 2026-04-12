@@ -73,6 +73,7 @@ class TestCancelMidImport:
 
         cfg = app.config["POEM_CONFIG"]
         conn = get_connection(cfg.db_path)
+        lexical_processor = app.extensions["lexical"]
 
         # Build a plan with 5 rows
         rows = []
@@ -98,7 +99,7 @@ class TestCancelMidImport:
 
         try:
             result = csv_import.execute(
-                conn, plan, embedding_service,
+                conn, plan, embedding_service, lexical_processor,
                 cancel_flag=cancel_flag,
                 on_progress=on_progress,
             )

@@ -14,11 +14,6 @@ from poem_assoc.search import SearchService, _make_preview
 from tests.fixtures import insert_poem_raw, make_embedding_blob
 
 
-# ---------------------------------------------------------------------------
-# 17.1 Unit tests — label_for
-# ---------------------------------------------------------------------------
-
-
 def test_label_for_strong():
     assert label_for(0.50) == "Strong"
 
@@ -41,11 +36,6 @@ def test_label_for_weak():
 
 def test_label_for_below_zero():
     assert label_for(-0.10) == "Weak"
-
-
-# ---------------------------------------------------------------------------
-# 17.1 Unit tests — _make_preview
-# ---------------------------------------------------------------------------
 
 
 def test_preview_single_line():
@@ -75,11 +65,6 @@ def test_preview_skips_blank_lines():
     assert preview.endswith("\u2026")
 
 
-# ---------------------------------------------------------------------------
-# 17.1 Unit tests — Untitled rendering
-# ---------------------------------------------------------------------------
-
-
 def test_untitled_rendered_when_title_blank(temp_db_path, embedding_service):
     init_db(temp_db_path)
     conn = get_connection(temp_db_path)
@@ -91,11 +76,6 @@ def test_untitled_rendered_when_title_blank(temp_db_path, embedding_service):
     results = svc.search("poem")
     assert len(results) == 1
     assert results[0].title == "Untitled"
-
-
-# ---------------------------------------------------------------------------
-# 17.2 Integration tests — SearchService.search
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -121,8 +101,7 @@ def test_search_empty_db_returns_empty_list(search_svc):
     assert search_svc.search("grief") == []
 
 
-def test_search_fewer_than_five_poems(search_db, embedding_service):
-    """With 3 seeded poems, search returns at most 3 results (not always 5)."""
+def test_search_fewer_than_five_poems(search_db, embedding_service, lexical_processor):
     conn = get_connection(search_db)
     for i in range(3):
         create_poem(
@@ -130,6 +109,7 @@ def test_search_fewer_than_five_poems(search_db, embedding_service):
             f"Poem {i}",
             f"This is the text for poem number {i} about autumn leaves",
             embedding_service,
+            lexical_processor,
         )
     conn.close()
 
@@ -138,7 +118,7 @@ def test_search_fewer_than_five_poems(search_db, embedding_service):
     assert len(results) == 3
 
 
-def test_search_returns_top_5(search_db, embedding_service):
+def test_search_returns_top_5(search_db, embedding_service, lexical_processor):
     conn = get_connection(search_db)
     for i in range(8):
         create_poem(
@@ -146,6 +126,7 @@ def test_search_returns_top_5(search_db, embedding_service):
             f"Poem {i}",
             f"This is poem {i} about nature seasons and the passing of time",
             embedding_service,
+            lexical_processor,
         )
     conn.close()
 
@@ -155,9 +136,7 @@ def test_search_returns_top_5(search_db, embedding_service):
 
 
 def test_search_sort_ties_broken_by_title(search_db, embedding_service):
-    """With identical embedding vectors, results come back in title ASC order."""
     dim = embedding_service.dimension
-    # All poems share the same unit vector → identical dot product with any query
     blob = make_embedding_blob(dim, index=0)
 
     conn = get_connection(search_db)
@@ -170,9 +149,15 @@ def test_search_sort_ties_broken_by_title(search_db, embedding_service):
     assert [r.title for r in results] == ["Apple", "Mango", "Zebra"]
 
 
-def test_search_result_has_label(search_db, embedding_service):
+def test_search_result_has_label(search_db, embedding_service, lexical_processor):
     conn = get_connection(search_db)
-    create_poem(conn, "Leaf Fall", "leaves falling in autumn wind", embedding_service)
+    create_poem(
+        conn,
+        "Leaf Fall",
+        "leaves falling in autumn wind",
+        embedding_service,
+        lexical_processor,
+    )
     conn.close()
 
     svc = SearchService(search_db, embedding_service)
@@ -180,29 +165,38 @@ def test_search_result_has_label(search_db, embedding_service):
     assert results[0].label in ("Strong", "Moderate", "Weak")
 
 
-def test_search_refresh_picks_up_new_poem(search_db, embedding_service):
+def test_search_refresh_picks_up_new_poem(search_db, embedding_service, lexical_processor):
     svc = SearchService(search_db, embedding_service)
-    # Trigger initial cache load on empty DB
     assert svc.search("nature") == []
 
     conn = get_connection(search_db)
-    create_poem(conn, "Nature Poem", "trees and rivers in the forest", embedding_service)
+    create_poem(
+        conn,
+        "Nature Poem",
+        "trees and rivers in the forest",
+        embedding_service,
+        lexical_processor,
+    )
     conn.close()
 
-    # Without refresh the cache still holds the old (empty) state
     svc.refresh()
     results = svc.search("forest trees")
     assert len(results) == 1
 
 
-# ---------------------------------------------------------------------------
-# 17.4 Persistence tests — iter_embeddings
-# ---------------------------------------------------------------------------
-
-
-def test_iter_embeddings_matches_inserted_rows(db_conn, embedding_service):
+def test_iter_embeddings_matches_inserted_rows(
+    db_conn,
+    embedding_service,
+    lexical_processor,
+):
     for i in range(3):
-        create_poem(db_conn, f"Poem {i}", f"poem text number {i}", embedding_service)
+        create_poem(
+            db_conn,
+            f"Poem {i}",
+            f"poem text number {i}",
+            embedding_service,
+            lexical_processor,
+        )
 
     rows = list(iter_embeddings(db_conn))
     assert len(rows) == 3
@@ -217,13 +211,7 @@ def test_iter_embeddings_empty_db(db_conn):
     assert list(iter_embeddings(db_conn)) == []
 
 
-# ---------------------------------------------------------------------------
-# 17.6 Performance smoke test
-# ---------------------------------------------------------------------------
-
-
 def test_search_latency_under_1s(search_db, embedding_service):
-    """50 poems in the cache; a single search call should complete in < 1 s."""
     dim = embedding_service.dimension
     conn = get_connection(search_db)
     for i in range(50):
@@ -232,7 +220,7 @@ def test_search_latency_under_1s(search_db, embedding_service):
     conn.close()
 
     svc = SearchService(search_db, embedding_service)
-    svc.refresh()  # force cache load outside the timed window
+    svc.refresh()
 
     start = time.monotonic()
     svc.search("nature seasons")

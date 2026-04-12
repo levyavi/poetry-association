@@ -1,12 +1,19 @@
-import struct
-
 import numpy as np
 
+from poem_assoc.constants import LEGACY_SEARCH_INDEX_VERSION, SEARCH_INDEX_VERSION
 from poem_assoc.db import get_connection, init_db
+from poem_assoc.index_metadata import get_index_state
 from poem_assoc.rebuild import run_rebuild
 
 
-def _insert_poem(conn, poem_id, title, text, embedding_service):
+def _insert_poem(
+    conn,
+    poem_id,
+    title,
+    text,
+    embedding_service,
+    lexical_text="",
+):
     """Insert a poem with a real embedding for testing."""
     from poem_assoc.text_cleaning import clean_poem_text, compute_dedup_key
 
@@ -16,9 +23,10 @@ def _insert_poem(conn, poem_id, title, text, embedding_service):
     blob = embedding_service.to_bytes(vector)
     with conn:
         conn.execute(
-            "INSERT INTO poems (id, title, text, cleaned_text, embedding, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, '2024-01-01T00:00:00+00:00', '2024-01-01T00:00:00+00:00')",
-            (poem_id, title, text, dedup, blob),
+            "INSERT INTO poems "
+            "(id, title, text, cleaned_text, lemmatized_search_text, embedding, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, '2024-01-01T00:00:00+00:00', '2024-01-01T00:00:00+00:00')",
+            (poem_id, title, text, dedup, lexical_text, blob),
         )
 
 
@@ -27,7 +35,11 @@ def _get_embedding_bytes(conn, poem_id):
     return bytes(row["embedding"]) if row else None
 
 
-def test_rebuild_regenerates_all_embeddings(temp_db_path, embedding_service):
+def test_rebuild_regenerates_all_embeddings(
+    temp_db_path,
+    embedding_service,
+    lexical_processor,
+):
     init_db(temp_db_path)
     conn = get_connection(temp_db_path)
     try:
@@ -37,22 +49,26 @@ def test_rebuild_regenerates_all_embeddings(temp_db_path, embedding_service):
 
         pre_blob = _get_embedding_bytes(conn, 1)
 
-        # Run rebuild — same model, so vectors should be deterministic and identical
-        result = run_rebuild(conn, embedding_service)
+        result = run_rebuild(conn, embedding_service, lexical_processor)
 
         assert result.total == 3
         assert result.rebuilt == 3
         assert result.error is None
 
         post_blob = _get_embedding_bytes(conn, 1)
-        # Embeddings are deterministic, so blobs should match
         assert pre_blob == post_blob
+
+        state = get_index_state(conn)
+        assert state.search_index_version == SEARCH_INDEX_VERSION
+        assert state.last_successful_full_rebuild_at is not None
     finally:
         conn.close()
 
 
 def test_rebuild_with_patched_service_produces_different_embeddings(
-    temp_db_path, embedding_service
+    temp_db_path,
+    embedding_service,
+    lexical_processor,
 ):
     """Use a wrapper that returns a different vector to verify rebuild actually writes."""
     init_db(temp_db_path)
@@ -72,7 +88,7 @@ def test_rebuild_with_patched_service_produces_different_embeddings(
             def to_bytes(self, vector):
                 return embedding_service.to_bytes(vector)
 
-        result = run_rebuild(conn, FakeService())
+        result = run_rebuild(conn, FakeService(), lexical_processor)
         assert result.total == 1
         assert result.rebuilt == 1
         assert result.error is None
@@ -83,7 +99,11 @@ def test_rebuild_with_patched_service_produces_different_embeddings(
         conn.close()
 
 
-def test_rebuild_preserves_row_count_and_ids(temp_db_path, embedding_service):
+def test_rebuild_preserves_row_count_and_ids(
+    temp_db_path,
+    embedding_service,
+    lexical_processor,
+):
     init_db(temp_db_path)
     conn = get_connection(temp_db_path)
     try:
@@ -92,7 +112,7 @@ def test_rebuild_preserves_row_count_and_ids(temp_db_path, embedding_service):
 
         pre_ids = {r["id"] for r in conn.execute("SELECT id FROM poems").fetchall()}
 
-        result = run_rebuild(conn, embedding_service)
+        result = run_rebuild(conn, embedding_service, lexical_processor)
         assert result.total == 5
         assert result.rebuilt == 5
 
@@ -102,8 +122,12 @@ def test_rebuild_preserves_row_count_and_ids(temp_db_path, embedding_service):
         conn.close()
 
 
-def test_rebuild_commits_rows_progressively(temp_db_path, embedding_service):
-    """Simulate a failure on the 3rd row and verify rows 1-2 already have new blobs."""
+def test_rebuild_commits_rows_progressively(
+    temp_db_path,
+    embedding_service,
+    lexical_processor,
+):
+    """Simulate a failure on the 3rd row and verify rows 1-2 already have new data."""
     init_db(temp_db_path)
     conn = get_connection(temp_db_path)
     try:
@@ -126,34 +150,79 @@ def test_rebuild_commits_rows_progressively(temp_db_path, embedding_service):
             def to_bytes(self, vector):
                 return embedding_service.to_bytes(vector)
 
-        pre_blobs = {
-            i: _get_embedding_bytes(conn, i) for i in range(1, 6)
-        }
+        pre_blobs = {i: _get_embedding_bytes(conn, i) for i in range(1, 6)}
+        with conn:
+            conn.execute(
+                "UPDATE app_metadata SET value = ? WHERE key = 'search_index_version'",
+                (LEGACY_SEARCH_INDEX_VERSION,),
+            )
 
-        result = run_rebuild(conn, FailOnThird())
+        result = run_rebuild(conn, FailOnThird(), lexical_processor)
+        state = get_index_state(conn)
 
         assert result.rebuilt == 2
         assert result.error is not None
         assert "injected failure" in result.error
+        assert state.search_index_version == LEGACY_SEARCH_INDEX_VERSION
 
-        # Rows 1 and 2 should have new embeddings
         assert _get_embedding_bytes(conn, 1) != pre_blobs[1]
         assert _get_embedding_bytes(conn, 2) != pre_blobs[2]
-        # Rows 3-5 should still have old embeddings
         assert _get_embedding_bytes(conn, 3) == pre_blobs[3]
         assert _get_embedding_bytes(conn, 4) == pre_blobs[4]
         assert _get_embedding_bytes(conn, 5) == pre_blobs[5]
+
+        rows = conn.execute(
+            "SELECT id, lemmatized_search_text FROM poems ORDER BY id"
+        ).fetchall()
+        assert rows[0]["lemmatized_search_text"]
+        assert rows[1]["lemmatized_search_text"]
+        assert rows[2]["lemmatized_search_text"] == ""
     finally:
         conn.close()
 
 
-def test_rebuild_zero_poems(temp_db_path, embedding_service):
+def test_rebuild_zero_poems(temp_db_path, embedding_service, lexical_processor):
     init_db(temp_db_path)
     conn = get_connection(temp_db_path)
     try:
-        result = run_rebuild(conn, embedding_service)
+        result = run_rebuild(conn, embedding_service, lexical_processor)
         assert result.total == 0
         assert result.rebuilt == 0
         assert result.error is None
+    finally:
+        conn.close()
+
+
+def test_manual_rebuild_backfills_lexical_field_for_existing_rows(
+    temp_db_path,
+    embedding_service,
+    lexical_processor,
+):
+    init_db(temp_db_path)
+    conn = get_connection(temp_db_path)
+    try:
+        _insert_poem(
+            conn,
+            1,
+            "Running Dogs",
+            "Leaves were falling",
+            embedding_service,
+            lexical_text="",
+        )
+        with conn:
+            conn.execute(
+                "UPDATE app_metadata SET value = ? WHERE key = 'search_index_version'",
+                (LEGACY_SEARCH_INDEX_VERSION,),
+            )
+
+        result = run_rebuild(conn, embedding_service, lexical_processor)
+        row = conn.execute(
+            "SELECT lemmatized_search_text FROM poems WHERE id = 1"
+        ).fetchone()
+        state = get_index_state(conn)
+
+        assert result.error is None
+        assert row["lemmatized_search_text"] == "run dog leaf be fall"
+        assert state.search_index_version == SEARCH_INDEX_VERSION
     finally:
         conn.close()

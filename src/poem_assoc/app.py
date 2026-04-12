@@ -6,6 +6,7 @@ from .config import Config
 from .csrf import issue_token as csrf_issue_token
 from .db import init_db
 from .embedding import EmbeddingService
+from .lexical import LexicalTextProcessor
 from .locks import RebuildLock
 from .routes.admin import admin_bp
 from .routes.public import public_bp
@@ -26,6 +27,10 @@ def create_app(
 
     app.config["SECRET_KEY"] = cfg.secret_key
     app.config["POEM_CONFIG"] = cfg
+
+    lexical_processor = LexicalTextProcessor(cfg.nltk_data_path)
+    lexical_processor.validate_resources()
+    app.extensions["lexical"] = lexical_processor
 
     init_db(cfg.db_path)
 

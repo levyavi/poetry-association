@@ -71,7 +71,7 @@ class TestConfirmWritesRows:
 
 
 class TestDuplicateSkipping:
-    def test_skips_db_duplicates(self, client, app, embedding_service):
+    def test_skips_db_duplicates(self, client, app, embedding_service, lexical_processor):
         """Seed one poem that matches fixture row, then import — it should be skipped."""
         from poem_assoc.db import get_connection
         from poem_assoc import repository
@@ -84,6 +84,7 @@ class TestDuplicateSkipping:
                 "Import One",
                 "A brand new poem about the morning sun.\nBright and warm it rises.",
                 embedding_service,
+                lexical_processor,
             )
         finally:
             conn.close()
@@ -157,11 +158,11 @@ class TestResultPageRendering:
 
         original_create = repo_mod.create_poem
 
-        def failing_create(conn, title, text, emb_svc):
+        def failing_create(conn, title, text, emb_svc, lexical_processor):
             call_count["n"] += 1
             if call_count["n"] == 2:
                 raise RuntimeError("Simulated embedding failure")
-            return original_create(conn, title, text, emb_svc)
+            return original_create(conn, title, text, emb_svc, lexical_processor)
 
         monkeypatch.setattr("poem_assoc.repository.create_poem", failing_create)
         # Also patch the reference used by csv_import

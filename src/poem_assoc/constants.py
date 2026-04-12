@@ -4,6 +4,9 @@ from __future__ import annotations
 # Adjust here only — all label logic flows through label_for().
 STRONG_THRESHOLD: float = 0.45
 MODERATE_THRESHOLD: float = 0.30
+SCHEMA_VERSION: str = "2"
+SEARCH_INDEX_VERSION: str = "v2"
+LEGACY_SEARCH_INDEX_VERSION: str = "v1"
 
 
 def label_for(score: float) -> str:

@@ -6,13 +6,11 @@ from .config import Config
 from .csv_import import CsvFormatError, execute, plan
 from .db import get_connection, init_db
 from .embedding import EmbeddingService
+from .lexical import LexicalTextProcessor
 
 
 def import_csv(argv: list[str]) -> int:
-    """CLI entry point for ``python -m poem_assoc import-csv <path>``.
-
-    Returns a process exit code (0 on success, 1 on failure).
-    """
+    """CLI entry point for ``python -m poem_assoc import-csv <path>``."""
     if not argv:
         print("Usage: python -m poem_assoc import-csv <csv-path>", file=sys.stderr)
         return 1
@@ -21,7 +19,7 @@ def import_csv(argv: list[str]) -> int:
 
     try:
         with open(csv_path, "r", encoding="utf-8-sig"):
-            pass  # validate file exists and is readable
+            pass
     except FileNotFoundError:
         print(f"Error: file not found: {csv_path}", file=sys.stderr)
         return 1
@@ -30,11 +28,19 @@ def import_csv(argv: list[str]) -> int:
         return 1
 
     cfg = Config.from_environment()
+    lexical_processor = LexicalTextProcessor(cfg.nltk_data_path)
+    try:
+        lexical_processor.validate_resources()
+    except Exception as exc:
+        print(f"Error: failed to validate local NLP resources: {exc}", file=sys.stderr)
+        return 1
+
     init_db(cfg.db_path)
 
     print("Loading embedding model...", flush=True)
     try:
-        embedding_service = EmbeddingService(cfg.model_name)
+        model_ref = cfg.model_path if cfg.model_path else cfg.model_name
+        embedding_service = EmbeddingService(model_ref)
     except Exception as exc:
         print(f"Error: failed to load embedding model: {exc}", file=sys.stderr)
         return 1
@@ -48,7 +54,7 @@ def import_csv(argv: list[str]) -> int:
         conn.close()
         return 1
 
-    result = execute(conn, import_plan, embedding_service)
+    result = execute(conn, import_plan, embedding_service, lexical_processor)
     conn.close()
 
     if result.error:

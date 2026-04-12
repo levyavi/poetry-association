@@ -10,6 +10,7 @@ dependencies = [
     "Flask>=3.0",
     "sentence-transformers>=2.2",
     "numpy>=1.24",
+    "nltk>=3.9",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +20,16 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+poem_assoc = [
+    "resources/nltk_data/corpora/*.zip",
+    "resources/nltk_data/taggers/*.zip",
+    "resources/nltk_data/taggers/averaged_perceptron_tagger_eng/*.json",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

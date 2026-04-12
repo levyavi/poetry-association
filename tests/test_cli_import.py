@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import subprocess
 import sys
 
@@ -30,6 +31,14 @@ class TestCliImport:
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert "Imported 2 poems" in result.stdout
 
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT lemmatized_search_text FROM poems ORDER BY id LIMIT 1"
+        ).fetchone()
+        conn.close()
+        assert row is not None
+        assert row[0]
+
     def test_rejects_missing_file(self, tmp_path):
         """Running CLI against a non-existent path exits non-zero."""
         db_path = str(tmp_path / "cli_test.db")
@@ -47,9 +56,7 @@ class TestCliImport:
         )
         db_path = str(tmp_path / "cli_test.db")
         env = {**os.environ, "POEM_DB_PATH": db_path}
-        # First run
         _run_cli("import-csv", str(csv_file), env=env)
-        # Second run
         result = _run_cli("import-csv", str(csv_file), env=env)
         assert result.returncode == 0
         assert "Imported 0 poems" in result.stdout

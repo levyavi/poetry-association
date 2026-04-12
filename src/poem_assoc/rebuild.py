@@ -4,8 +4,11 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+from .constants import SEARCH_INDEX_VERSION
 from .embedding import EmbeddingService
-from .text_cleaning import clean_poem_text
+from .index_metadata import mark_rebuild_success
+from .lexical import LexicalTextProcessor
+from .text_cleaning import clean_poem_text, compute_dedup_key
 
 
 @dataclass
@@ -20,16 +23,10 @@ class RebuildResult:
 def run_rebuild(
     conn: sqlite3.Connection,
     embedding_service: EmbeddingService,
+    lexical_processor: LexicalTextProcessor,
 ) -> RebuildResult:
-    """Re-encode every poem's embedding and commit each row individually.
-
-    Returns a ``RebuildResult`` with counts. On a per-row failure the
-    already-committed rows keep their new embeddings and the error is
-    recorded in the result (partial progress is preserved).
-    """
-    rows = conn.execute(
-        "SELECT id, title, text FROM poems ORDER BY id"
-    ).fetchall()
+    """Recompute all derived search data row-by-row, preserving partial progress."""
+    rows = conn.execute("SELECT id, title, text FROM poems ORDER BY id").fetchall()
 
     total = len(rows)
     rebuilt = 0
@@ -41,17 +38,22 @@ def run_rebuild(
 
         try:
             cleaned = clean_poem_text(text)
+            dedup = compute_dedup_key(cleaned)
+            search_text = lexical_processor.build_search_text(title, text)
             vector = embedding_service.encode(title, cleaned)
             blob = embedding_service.to_bytes(vector)
             now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
             with conn:
                 conn.execute(
-                    "UPDATE poems SET embedding = ?, updated_at = ? WHERE id = ?",
-                    (blob, now, poem_id),
+                    "UPDATE poems SET cleaned_text = ?, lemmatized_search_text = ?, "
+                    "embedding = ?, updated_at = ? WHERE id = ?",
+                    (dedup, search_text, blob, now, poem_id),
                 )
             rebuilt += 1
         except Exception as exc:
             return RebuildResult(total=total, rebuilt=rebuilt, error=str(exc))
 
+    rebuilt_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    mark_rebuild_success(conn, SEARCH_INDEX_VERSION, rebuilt_at)
     return RebuildResult(total=total, rebuilt=rebuilt)

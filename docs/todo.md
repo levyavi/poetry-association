@@ -21,47 +21,47 @@ The authoritative scope is [`docs/poetry_association_tool_v2_design_document.md`
 
 ## Task 009 — Persist Lemmatized Search Text and Bundle Offline NLP Resources
 
-- [ ] **009** complete
+- [x] **009** complete
 
 ### Packaging and config
-- [ ] Add `nltk` to runtime dependencies.
-- [ ] Package bundled local NLTK resources under `src/poem_assoc/resources/nltk_data/`.
-- [ ] Add config support for resolving and validating the local NLP resource path.
-- [ ] Add the V2 `SEARCH_INDEX_VERSION` constant.
+- [x] Add `nltk` to runtime dependencies.
+- [x] Package bundled local NLTK resources under `src/poem_assoc/resources/nltk_data/`.
+- [x] Add config support for resolving and validating the local NLP resource path.
+- [x] Add the V2 `SEARCH_INDEX_VERSION` constant.
 
 ### Source modules
-- [ ] Create `src/poem_assoc/lexical.py`.
-- [ ] Create `src/poem_assoc/index_metadata.py`.
-- [ ] Update `src/poem_assoc/db.py` to migrate existing V1 databases and create `app_metadata`.
-- [ ] Update `src/poem_assoc/app.py` to instantiate and register the lexical processor.
-- [ ] Update `src/poem_assoc/repository.py` to regenerate `lemmatized_search_text` on create and edit.
-- [ ] Update `src/poem_assoc/csv_import.py` to regenerate lexical derived data during import.
-- [ ] Update `src/poem_assoc/cli.py` to pass the lexical processor into CLI import execution.
-- [ ] Update `src/poem_assoc/rebuild.py` to regenerate `lemmatized_search_text` and mark metadata current only on full success.
-- [ ] Update `src/poem_assoc/routes/admin.py` to thread the lexical processor through add/edit/import/rebuild flows.
+- [x] Create `src/poem_assoc/lexical.py`.
+- [x] Create `src/poem_assoc/index_metadata.py`.
+- [x] Update `src/poem_assoc/db.py` to migrate existing V1 databases and create `app_metadata`.
+- [x] Update `src/poem_assoc/app.py` to instantiate and register the lexical processor.
+- [x] Update `src/poem_assoc/repository.py` to regenerate `lemmatized_search_text` on create and edit.
+- [x] Update `src/poem_assoc/csv_import.py` to regenerate lexical derived data during import.
+- [x] Update `src/poem_assoc/cli.py` to pass the lexical processor into CLI import execution.
+- [x] Update `src/poem_assoc/rebuild.py` to regenerate `lemmatized_search_text` and mark metadata current only on full success.
+- [x] Update `src/poem_assoc/routes/admin.py` to thread the lexical processor through add/edit/import/rebuild flows.
 
 ### Schema and metadata
-- [ ] Add `lemmatized_search_text` to `poems`.
-- [ ] Create `app_metadata`.
-- [ ] Persist `schema_version`.
-- [ ] Persist `search_index_version`.
-- [ ] Persist `last_successful_full_rebuild_at`.
-- [ ] Mark fresh V2 databases current immediately.
-- [ ] Mark migrated V1 databases with a legacy/outdated search-index version.
+- [x] Add `lemmatized_search_text` to `poems`.
+- [x] Create `app_metadata`.
+- [x] Persist `schema_version`.
+- [x] Persist `search_index_version`.
+- [x] Persist `last_successful_full_rebuild_at`.
+- [x] Mark fresh V2 databases current immediately.
+- [x] Mark migrated V1 databases with a legacy/outdated search-index version.
 
 ### Tests
-- [ ] Create `tests/test_lexical.py`.
-- [ ] Create `tests/test_index_metadata.py`.
-- [ ] Update repository tests for lexical derived data.
-- [ ] Update CSV import tests for lexical derived data and partial-success preservation.
-- [ ] Update CLI import tests for lexical derived data.
-- [ ] Update rebuild tests for lexical regeneration and metadata behavior.
-- [ ] Verify packaged local NLP resources exist and are used offline.
+- [x] Create `tests/test_lexical.py`.
+- [x] Create `tests/test_index_metadata.py`.
+- [x] Update repository tests for lexical derived data.
+- [x] Update CSV import tests for lexical derived data and partial-success preservation.
+- [x] Update CLI import tests for lexical derived data.
+- [x] Update rebuild tests for lexical regeneration and metadata behavior.
+- [x] Verify packaged local NLP resources exist and are used offline.
 
 ### Observable verification
-- [ ] New and migrated databases contain `lemmatized_search_text`.
-- [ ] Admin add/edit/import and CLI import persist non-empty lexical derived data.
-- [ ] Manual rebuild refreshes lexical derived data for the full corpus.
+- [x] New and migrated databases contain `lemmatized_search_text`.
+- [x] Admin add/edit/import and CLI import persist non-empty lexical derived data.
+- [x] Manual rebuild refreshes lexical derived data for the full corpus.
 
 ---
 

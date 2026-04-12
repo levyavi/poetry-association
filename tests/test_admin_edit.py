@@ -16,25 +16,31 @@ def _get_csrf_token(client):
         return sess["csrf_token"]
 
 
-def _seed_poem(app, embedding_service, title="Original", text="Original poem text body"):
+def _seed_poem(
+    app,
+    embedding_service,
+    lexical_processor,
+    title="Original",
+    text="Original poem text body",
+):
     cfg = app.config["POEM_CONFIG"]
     conn = get_connection(cfg.db_path)
-    poem_id = create_poem(conn, title, text, embedding_service)
+    poem_id = create_poem(conn, title, text, embedding_service, lexical_processor)
     conn.close()
     return poem_id
 
 
 class TestAdminEdit:
-    def test_edit_form_prefilled(self, app, client, embedding_service):
-        poem_id = _seed_poem(app, embedding_service)
+    def test_edit_form_prefilled(self, app, client, embedding_service, lexical_processor):
+        poem_id = _seed_poem(app, embedding_service, lexical_processor)
         _login(client)
         resp = client.get(f"/admin/poems/{poem_id}/edit")
         assert resp.status_code == 200
         assert b"Original" in resp.data
         assert b"Original poem text body" in resp.data
 
-    def test_edit_success(self, app, client, embedding_service):
-        poem_id = _seed_poem(app, embedding_service)
+    def test_edit_success(self, app, client, embedding_service, lexical_processor):
+        poem_id = _seed_poem(app, embedding_service, lexical_processor)
         _login(client)
         token = _get_csrf_token(client)
 
@@ -51,14 +57,14 @@ class TestAdminEdit:
         assert b"Saved" in resp.data
         assert b"Updated Title" in resp.data
 
-    def test_edit_bumps_updated_at(self, app, client, embedding_service):
-        poem_id = _seed_poem(app, embedding_service)
+    def test_edit_bumps_updated_at(self, app, client, embedding_service, lexical_processor):
+        poem_id = _seed_poem(app, embedding_service, lexical_processor)
         cfg = app.config["POEM_CONFIG"]
         conn = get_connection(cfg.db_path)
         before = get_poem(conn, poem_id)
         conn.close()
 
-        time.sleep(1.1)  # ensure updated_at (seconds precision) advances
+        time.sleep(1.1)
         _login(client)
         token = _get_csrf_token(client)
         client.post(
@@ -77,8 +83,10 @@ class TestAdminEdit:
         assert after["updated_at"] > before["updated_at"]
         assert after["created_at"] == before["created_at"]
 
-    def test_edit_unchanged_preserves_updated_at(self, app, client, embedding_service):
-        poem_id = _seed_poem(app, embedding_service)
+    def test_edit_unchanged_preserves_updated_at(
+        self, app, client, embedding_service, lexical_processor
+    ):
+        poem_id = _seed_poem(app, embedding_service, lexical_processor)
         cfg = app.config["POEM_CONFIG"]
         conn = get_connection(cfg.db_path)
         before = get_poem(conn, poem_id)
@@ -101,9 +109,11 @@ class TestAdminEdit:
         conn.close()
         assert after["updated_at"] == before["updated_at"]
 
-    def test_edit_duplicate_blocked(self, app, client, embedding_service):
-        _seed_poem(app, embedding_service, title="A", text="Text alpha")
-        poem_id_b = _seed_poem(app, embedding_service, title="B", text="Text beta")
+    def test_edit_duplicate_blocked(self, app, client, embedding_service, lexical_processor):
+        _seed_poem(app, embedding_service, lexical_processor, title="A", text="Text alpha")
+        poem_id_b = _seed_poem(
+            app, embedding_service, lexical_processor, title="B", text="Text beta"
+        )
 
         _login(client)
         token = _get_csrf_token(client)
@@ -112,15 +122,18 @@ class TestAdminEdit:
             data={
                 "csrf_token": token,
                 "title": "B",
-                "text": "Text alpha",  # same as poem A
+                "text": "Text alpha",
             },
         )
         assert resp.status_code == 422
         assert b"already exists" in resp.data
 
-    def test_edit_same_text_own_row_allowed(self, app, client, embedding_service):
-        """Editing a poem to its own current text should not trigger duplicate."""
-        poem_id = _seed_poem(app, embedding_service, title="Mine", text="My own text")
+    def test_edit_same_text_own_row_allowed(
+        self, app, client, embedding_service, lexical_processor
+    ):
+        poem_id = _seed_poem(
+            app, embedding_service, lexical_processor, title="Mine", text="My own text"
+        )
         _login(client)
         token = _get_csrf_token(client)
         resp = client.post(
@@ -140,8 +153,8 @@ class TestAdminEdit:
         resp = client.get("/admin/poems/99999/edit")
         assert resp.status_code == 404
 
-    def test_edit_requires_csrf(self, app, client, embedding_service):
-        poem_id = _seed_poem(app, embedding_service)
+    def test_edit_requires_csrf(self, app, client, embedding_service, lexical_processor):
+        poem_id = _seed_poem(app, embedding_service, lexical_processor)
         _login(client)
         _get_csrf_token(client)
         resp = client.post(

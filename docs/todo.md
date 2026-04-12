@@ -43,29 +43,31 @@ This checklist is the full, sequential set of items needed to build V1, derived 
 
 ## Task 002 — Text Cleaning, Embedding Service, Repository, and CSV Import CLI
 
+- [x] **002** — complete
+
 ### Core modules
-- [ ] `text_cleaning.py` with `clean_poem_text`, `compute_dedup_key`, `clean_query`.
-- [ ] `embedding.py` with `EmbeddingService` (model loaded once, `encode`, `encode_query`, `to_bytes`, `from_bytes`).
-- [ ] `repository.py` with `create_poem`, `get_poem`, `list_poems`, `find_by_cleaned_text`; `DuplicatePoemError`.
-- [ ] `csv_import.py` with `plan`, `execute`, `ImportPlan`, `ImportResult`, `CsvFormatError`.
-- [ ] `cli.py` with the `import-csv` subcommand.
-- [ ] Update `__main__.py` to dispatch `import-csv` to CLI.
-- [ ] Update `app.py` to instantiate `EmbeddingService` at startup and attach to `app.extensions`.
-- [ ] Update `config.py` with `model_name`, `model_path`.
-- [ ] Update `pyproject.toml` with `sentence-transformers`, `numpy`.
+- [x] `text_cleaning.py` with `clean_poem_text`, `compute_dedup_key`, `clean_query`.
+- [x] `embedding.py` with `EmbeddingService` (model loaded once, `encode`, `encode_query`, `to_bytes`, `from_bytes`).
+- [x] `repository.py` with `create_poem`, `get_poem`, `list_poems`, `find_by_cleaned_text`; `DuplicatePoemError`.
+- [x] `csv_import.py` with `plan`, `execute`, `ImportPlan`, `ImportResult`, `CsvFormatError`.
+- [x] `cli.py` with the `import-csv` subcommand.
+- [x] Update `__main__.py` to dispatch `import-csv` to CLI.
+- [x] Update `app.py` to instantiate `EmbeddingService` at startup and attach to `app.extensions`.
+- [x] Update `config.py` with `model_name`, `model_path`.
+- [x] Update `pyproject.toml` with `sentence-transformers`, `numpy`.
 
 ### Sample data
-- [ ] `sample_data/sample_poems.csv` with ≥10 poems including duplicates.
-- [ ] `tests/fixtures/fixture_poems.csv` for deterministic tests.
+- [x] `sample_data/sample_poems.csv` with ≥10 poems including duplicates.
+- [x] `tests/fixtures/fixture_poems.csv` for deterministic tests.
 
 ### Tests
-- [ ] `test_text_cleaning.py`.
-- [ ] `test_embedding.py` (unit-normalization, determinism, serialization).
-- [ ] `test_repository.py` (insert, duplicate rejection, sort).
-- [ ] `test_csv_import.py` (plan, execute, cancellation, partial failure).
-- [ ] `test_cli_import.py` (real subprocess invocation).
-- [ ] All tests pass with real SQLite + real model.
-- [ ] Observable: CLI imports sample CSV, DB has rows with non-null embeddings.
+- [x] `test_text_cleaning.py`.
+- [x] `test_embedding.py` (unit-normalization, determinism, serialization).
+- [x] `test_repository.py` (insert, duplicate rejection, sort).
+- [x] `test_csv_import.py` (plan, execute, cancellation, partial failure).
+- [x] `test_cli_import.py` (real subprocess invocation).
+- [x] All tests pass with real SQLite + real model.
+- [x] Observable: CLI imports sample CSV, DB has rows with non-null embeddings.
 
 ---
 

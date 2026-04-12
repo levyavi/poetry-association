@@ -2,6 +2,14 @@ import pytest
 
 from poem_assoc.app import create_app
 from poem_assoc.config import Config
+from poem_assoc.db import get_connection, init_db
+from poem_assoc.embedding import EmbeddingService
+
+
+@pytest.fixture(scope="session")
+def embedding_service():
+    """Return a real EmbeddingService shared across all tests (model loaded once)."""
+    return EmbeddingService("all-MiniLM-L6-v2")
 
 
 @pytest.fixture()
@@ -11,12 +19,23 @@ def temp_db_path(tmp_path):
 
 
 @pytest.fixture()
-def app(temp_db_path):
-    """Return a Flask app bound to a temporary database."""
+def db_conn(temp_db_path):
+    """Return a connection to a fresh, schema-initialized temp database."""
+    init_db(temp_db_path)
+    conn = get_connection(temp_db_path)
+    yield conn
+    conn.close()
+
+
+@pytest.fixture()
+def app(temp_db_path, embedding_service):
+    """Return a Flask app bound to a temporary database with embedding service."""
     cfg = Config(
         db_path=temp_db_path,
         secret_key="test-secret",
         admin_password="",
+        model_name="all-MiniLM-L6-v2",
+        model_path=None,
     )
     flask_app = create_app(config_override=cfg)
     flask_app.config["TESTING"] = True

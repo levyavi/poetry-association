@@ -1,0 +1,15 @@
+<section class="results">
+  {% if results %}
+    {% for result in results %}
+    <article class="result" data-poem-id="{{ result.id }}">
+      <div class="result-header">
+        <span class="result-title">{{ result.title | e }}</span>
+        <span class="badge badge-{{ result.label | lower }}">{{ result.label }}</span>
+      </div>
+      <p class="result-preview">{{ result.preview | e }}</p>
+    </article>
+    {% endfor %}
+  {% else %}
+    <p class="no-results">No poems available.</p>
+  {% endif %}
+</section>

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+import struct
 from datetime import datetime, timezone
+
+import numpy as np
 
 from .embedding import EmbeddingService
 from .text_cleaning import clean_poem_text, compute_dedup_key
@@ -74,3 +77,19 @@ def find_by_cleaned_text(
     return conn.execute(
         "SELECT * FROM poems WHERE cleaned_text = ?", (dedup_key,)
     ).fetchone()
+
+
+def iter_embeddings(conn: sqlite3.Connection):
+    """Yield (id, title, cleaned_poem_text, vector) for every poem that has an embedding.
+
+    The third element is derived from clean_poem_text(text) — the line-break-preserving
+    form suitable for preview extraction, not the dedup key stored in cleaned_text.
+    """
+    rows = conn.execute(
+        "SELECT id, title, text, embedding FROM poems WHERE embedding IS NOT NULL"
+    ).fetchall()
+    for row in rows:
+        blob: bytes = row["embedding"]
+        (dim,) = struct.unpack("<I", blob[:4])
+        vec = np.frombuffer(blob[4:], dtype=np.float32).copy()
+        yield (row["id"], row["title"], clean_poem_text(row["text"]), vec)

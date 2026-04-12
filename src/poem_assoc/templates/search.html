@@ -2,7 +2,7 @@
 
 {% block content %}
 <section class="search-section">
-  <form method="post" action="/" class="search-form">
+  <form method="post" action="/search" class="search-form">
     <input
       type="text"
       name="q"
@@ -16,6 +16,7 @@
   </form>
   {% if q %}
   <p class="query-context">Results for: &ldquo;{{ q | e }}&rdquo;</p>
+  {% include "_results.html" %}
   {% endif %}
 </section>
 {% endblock %}

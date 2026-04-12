@@ -73,24 +73,26 @@ This checklist is the full, sequential set of items needed to build V1, derived 
 
 ## Task 003 — Search Pipeline and Results Rendering
 
+- [x] **003** — complete
+
 ### Modules
-- [ ] `constants.py` with threshold values and `label_for`.
-- [ ] `search.py` with `SearchService`, `SearchResult`, preview truncation.
-- [ ] Update `repository.py` with `iter_embeddings`.
-- [ ] Update `app.py` to attach `SearchService`.
-- [ ] Update `routes/public.py` with `POST /search`.
+- [x] `constants.py` with threshold values and `label_for`.
+- [x] `search.py` with `SearchService`, `SearchResult`, preview truncation.
+- [x] Update `repository.py` with `iter_embeddings`.
+- [x] Update `app.py` to attach `SearchService`.
+- [x] Update `routes/public.py` with `POST /search`.
 
 ### Templates and CSS
-- [ ] `_results.html` partial.
-- [ ] Update `search.html` to include results and preserve query value.
-- [ ] Update `styles.css` with results list, relevance badges, hover highlight.
-- [ ] Query context line `Results for: "..."`.
+- [x] `_results.html` partial.
+- [x] Update `search.html` to include results and preserve query value.
+- [x] Update `styles.css` with results list, relevance badges, hover highlight.
+- [x] Query context line `Results for: "..."`.
 
 ### Tests
-- [ ] `test_search_service.py` covering labels, tie-break, empty query, fewer-than-5 corpus.
-- [ ] `test_search_route.py` covering POST + rendering + input persistence.
-- [ ] `tests/fixtures/__init__.py` helpers for synthetic vectors.
-- [ ] Observable: typing a query on the search page returns up to 5 labeled results.
+- [x] `test_search_service.py` covering labels, tie-break, empty query, fewer-than-5 corpus.
+- [x] `test_search_route.py` covering POST + rendering + input persistence.
+- [x] `tests/fixtures/__init__.py` helpers for synthetic vectors.
+- [x] Observable: typing a query on the search page returns up to 5 labeled results.
 
 ---
 

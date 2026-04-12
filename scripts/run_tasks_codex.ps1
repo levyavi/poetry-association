@@ -5,13 +5,11 @@ param(
 $ErrorActionPreference = "Stop"
 
 $TasksDir = "tasks"
-$BaseSessionId = "ab39fae1-5b5b-4d4a-b307-dbf70e0cf5d6"
 
 function Get-Model {
     param([string]$Level)
-    if ($Level -eq "Low") { return "haiku" }
-    if ($Level -eq "High") { return "opus" }
-    return "sonnet"
+    if ($Level -eq "Low") { return "gpt-5.4-mini" }
+    return "gpt-5.4"
 }
 
 $TaskFiles = Get-ChildItem -Path $TasksDir -Filter "*.md" |
@@ -36,30 +34,37 @@ foreach ($TaskFile in $TaskFiles) {
     $LevelLine = Get-Content $TaskFile.FullName | Select-String -Pattern "Level:" | Select-Object -First 1
     $Level = $LevelLine -replace '.*Level:\s*', '' -replace '\s', ''
     $Model = Get-Model $Level
-    $TaskSessionId = [guid]::NewGuid().ToString()
 
-    $Prompt = "Implement only tasks/$TaskId.md. Do not start other numbered task files unless this task explicitly requires it. When done: satisfy the task acceptance criteria and run its verification commands (e.g. npm test, npm run build); fix any failures. Mark that roadmap line done in docs/todo.md. Create a git commit that includes all changes for this task (staged files only for this work). Use a message like: task $TaskId short summary. Do not skip the commit if there are changes. Reply with a short summary: task id, files touched, commands run, commit hash or message, and anything the next run should know."
+    $Prompt = @"
+You are working in the project repo root.
+Follow AGENTS.md, including the lean-ctx requirement for reads, searches, and shell commands.
+Read docs/poetry_association_tool_design_document.md, docs/todo.md, and tasks/$TaskId.md before making changes.
+Implement only tasks/$TaskId.md. Do not start other numbered task files unless this task explicitly requires it.
+When done:
+- satisfy the task acceptance criteria
+- run the task's verification commands and fix failures
+- mark that roadmap line done in docs/todo.md
+- create a git commit that includes all changes for this task, using a message like: task $TaskId short summary
+- reply with a short summary: task id, files touched, commands run, commit hash or message, and anything the next run should know
+"@
 
     Write-Host ""
     Write-Host "=================================================="
     Write-Host "Running task: $TaskId | Level: $Level | Model: $Model"
-    Write-Host "Session ID:   $TaskSessionId"
     Write-Host "=================================================="
 
     $done = $false
     while (-not $done) {
-        claude --resume $BaseSessionId --fork-session --session-id $TaskSessionId --model $Model --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git *),Bash(cd *),Bash(npm *)" --permission-mode auto -p $Prompt
+        codex exec --full-auto --sandbox workspace-write -m $Model $Prompt
 
         if ($LASTEXITCODE -eq 0) {
             Write-Host ""
-            Write-Host "Task $TaskId complete. Session: $TaskSessionId"
+            Write-Host "Task $TaskId complete."
             $done = $true
         } else {
             Write-Host ""
             Write-Host "=================================================="
             Write-Host "  TASK $TaskId FAILED (exit code $LASTEXITCODE)"
-            Write-Host "  To inspect this session:"
-            Write-Host "    claude --resume $TaskSessionId"
             Write-Host "=================================================="
             Write-Host ""
 
@@ -74,7 +79,6 @@ foreach ($TaskFile in $TaskFiles) {
 
                 if ($choice -eq "R" -or $choice -eq "r") {
                     Write-Host "Retrying task $TaskId..."
-                    $TaskSessionId = [guid]::NewGuid().ToString()
                     $validChoice = $true
                 } elseif ($choice -eq "S" -or $choice -eq "s") {
                     Write-Host "Skipping task $TaskId."
@@ -83,7 +87,7 @@ foreach ($TaskFile in $TaskFiles) {
                 } elseif ($choice -eq "Q" -or $choice -eq "q") {
                     Write-Host ""
                     Write-Host "Quitting. To resume from this task:"
-                    Write-Host "  .\scripts\run_tasks.ps1 -StartTask $TaskId"
+                    Write-Host "  .\scripts\run_tasks_codex.ps1 -StartTask $TaskId"
                     exit 1
                 } else {
                     Write-Host "Invalid choice. Please enter R, S, or Q."

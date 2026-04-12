@@ -1,18 +1,36 @@
-# run_tasks.ps1
+# Task Runner Scripts
 
-Automates running a sequence of implementation tasks using Claude Code. Each task is executed in its own isolated Claude session, forked from a shared base context that contains the project spec and plan.
+These scripts automate the numbered files in `tasks/` for either Claude or Codex.
+
+- `scripts/run_tasks_claude.ps1`: Claude-specific runner that forks each task from a saved Claude base session.
+- `scripts/run_tasks_codex.ps1`: Codex-specific runner that executes each task with `codex exec`.
+
+Both scripts:
+
+1. Read numbered task files from `tasks/` (`001.md`, `002.md`, etc.)
+2. Read the task complexity and choose a model
+3. Run each task in isolation
+4. Ask the agent to implement the task, run verification, mark `docs/todo.md`, commit the result, and print a short summary
+5. Stop for retry / skip / quit decisions if a task fails
 
 ---
 
-## How It Works
+## Project Context
 
-1. Reads all numbered task files from the `tasks/` folder (`001.md`, `002.md`, etc.)
-2. For each task, reads the complexity level and picks the appropriate Claude model
-3. Forks the base context session so every task starts clean with the spec and plan — but no pollution from previous tasks
-4. Runs Claude non-interactively with a standard prompt that implements the task, runs verification, commits the result, and reports back
-5. Stops immediately if any task fails
+For this repo, the authoritative shared context is:
 
-### Model Selection
+- `docs/poetry_association_tool_design_document.md`
+- `docs/todo.md`
+- `tasks/NNN.md`
+- `AGENTS.md`
+
+There is no `spec.md` / `plan.md` pair in this project. If you adapt these scripts to another repo, update the prompts and the Claude base-context instructions accordingly.
+
+---
+
+## Model Selection
+
+### Claude
 
 | Complexity | Model  |
 |------------|--------|
@@ -20,88 +38,109 @@ Automates running a sequence of implementation tasks using Claude Code. Each tas
 | Medium     | Sonnet |
 | High       | Opus   |
 
+### Codex
+
+| Complexity | Model        |
+|------------|--------------|
+| Low        | gpt-5.4-mini |
+| Medium     | gpt-5.4      |
+| High       | gpt-5.4      |
+
+The Codex defaults above keep the script simple and conservative. If you want a different tradeoff, change `Get-Model` in `run_tasks_codex.ps1`.
+
 ---
 
-## Before Running
+## Before Running Claude
 
-### 1. Set up the base context session in Claude Code
+### 1. Create the Claude base context
 
-Open a terminal in your project root and start Claude Code:
+Open a terminal in the project root and start Claude Code:
 
-```
+```powershell
 claude
 ```
 
-Load your spec and plan:
+Load the shared project context:
 
-```
-Read spec.md and plan.md thoroughly.
-```
-
-Once done, compact the context to create a clean, optimized snapshot:
-
-```
-/compact Preserve the full project spec, the complete plan, all task definitions, key architectural decisions, and any constraints or requirements. Discard everything else.
+```text
+Read AGENTS.md, docs/poetry_association_tool_design_document.md, and docs/todo.md thoroughly. Understand how the numbered task files in tasks/ relate to the roadmap.
 ```
 
-After compacting, skim the summary to confirm the spec and plan came through correctly.
+Compact the context so the saved session contains only the durable project context:
 
-Then name the session:
-
+```text
+/compact Preserve the full design document, the roadmap in docs/todo.md, the task-file workflow, project constraints from AGENTS.md, and any key architectural decisions. Discard everything else.
 ```
+
+Then rename the session:
+
+```text
 /rename base-context
 ```
 
-You can now close this terminal. The session is saved to disk.
+### 2. Get the Claude base session ID
 
-### 2. Get the base session ID
+In a new terminal:
 
-Open a new terminal in your project root and run:
-
-```
+```powershell
 claude --resume
 ```
 
-This opens an interactive session picker. Find the `base-context` session, and note its session ID (a UUID like `ab39fae1-5b5b-4d4a-b307-dbf70e0cf5d6`).
+Find the `base-context` session and copy its session ID.
 
-### 3. Update the script
+### 3. Update the Claude runner
 
-Open `scripts/run_tasks.ps1` and paste the session ID into this line near the top:
+Open `scripts/run_tasks_claude.ps1` and set:
 
 ```powershell
 $BaseSessionId = "your-session-id-here"
 ```
 
-### 4. Check your task files
+### 4. Check the task files
 
-Each task file in `tasks/` must have a complexity line somewhere in the file:
+Each task file in `tasks/` must contain one of:
 
-```
+```text
 - Level: Low
 - Level: Medium
 - Level: High
 ```
 
-The script scans for the first `Level:` match in each file.
+The scripts use the first `Level:` match found in the file.
+
+---
+
+## Before Running Codex
+
+Make sure the Codex CLI is installed and authenticated:
+
+```powershell
+codex --help
+```
+
+The Codex runner does not use a saved base session. Instead, each task run prompts Codex to read the shared project docs fresh before it starts work.
 
 ---
 
 ## Usage
 
-From your project root:
+From the project root:
 
 ```powershell
-# Run all tasks from the beginning
-.\scripts\run_tasks.ps1
+# Claude: run all tasks
+.\scripts\run_tasks_claude.ps1
 
-# Resume from a specific task (e.g. after a failure)
-.\scripts\run_tasks.ps1 -StartTask 5
+# Claude: resume from a specific task
+.\scripts\run_tasks_claude.ps1 -StartTask 005
 
-# Both formats work
-.\scripts\run_tasks.ps1 -StartTask 005
+# Codex: run all tasks
+.\scripts\run_tasks_codex.ps1
+
+# Codex: resume from a specific task
+.\scripts\run_tasks_codex.ps1 -StartTask 005
 ```
 
-If you have never run PowerShell scripts before, you may need to run this once first:
+If PowerShell blocks script execution, run this once:
 
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
@@ -109,56 +148,76 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 ---
 
-## What the Script Does Per Task
+## What Each Script Does Per Task
 
-For each task file the script will:
+### Claude runner
 
-1. Skip tasks before the `-StartTask` value
-2. Read the complexity level and select the model
-3. Fork the base context into a fresh isolated session
-4. Run Claude with this prompt:
-   - Implement the task
-   - Run verification commands (`npm test`, `npm run build`, etc.) and fix failures
-   - Mark the task done in `docs/todo.md`
-   - Create a git commit with all changes
-   - Reply with a summary of what was done
-5. Stop and report the failed task ID if Claude exits with an error
+For each task:
+
+1. Skips tasks before `-StartTask`
+2. Selects a Claude model from the task's `Level:`
+3. Forks the saved Claude base session into a fresh task session
+4. Asks Claude to implement only that task, run verification, mark `docs/todo.md`, commit, and summarize
+5. On failure, lets you retry, skip, or quit
+
+### Codex runner
+
+For each task:
+
+1. Skips tasks before `-StartTask`
+2. Selects a Codex model from the task's `Level:`
+3. Runs `codex exec --full-auto --sandbox workspace-write`
+4. Prompts Codex to read `AGENTS.md`, `docs/poetry_association_tool_design_document.md`, `docs/todo.md`, and the current task file before making changes
+5. On failure, lets you retry, skip, or quit
+
+The Codex runner is stateless across tasks by design. If a task fails, inspect the working tree and rerun from that task.
 
 ---
 
-## If a Task Fails
+## Failure Recovery
 
-The script will print:
+### Claude
 
-```
-ERROR: Task 005 failed (Claude exited with code 1).
-Fix the issue and re-run from this task with:
-  .\scripts\run_tasks.ps1 -StartTask 005
-```
+The script prints the task session ID for each run. You can resume a failed Claude task directly:
 
-Fix whatever caused the failure (manually or by resuming the task's session), then re-run from that task using the command shown.
-
-Each task's session ID is printed during the run, so you can resume any specific task session for debugging:
-
-```
+```powershell
 claude --resume <session-id>
 ```
 
+To rerun the task sequence from that task:
+
+```powershell
+.\scripts\run_tasks_claude.ps1 -StartTask 005
+```
+
+### Codex
+
+Codex task runs in this script are one-shot executions. If a task fails:
+
+1. Review the current working tree and terminal output
+2. Fix anything manually if needed
+3. Rerun from the failed task:
+
+```powershell
+.\scripts\run_tasks_codex.ps1 -StartTask 005
+```
+
 ---
 
-## File Structure
+## Files
 
-```
+```text
 project/
 ├── tasks/
 │   ├── 001.md
 │   ├── 002.md
 │   └── ...
 ├── docs/
-│   ├── todo.md
-│   ├── spec.md
-│   └── plan.md
+│   ├── poetry_association_tool_design_document.md
+│   └── todo.md
 ├── scripts/
-└   └── run_tasks.ps1
-
+│   ├── run_tasks.md
+│   ├── run_tasks_claude.ps1
+│   └── run_tasks_codex.ps1
+└── AGENTS.md
 ```

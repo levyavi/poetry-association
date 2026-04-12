@@ -98,25 +98,27 @@ This checklist is the full, sequential set of items needed to build V1, derived 
 
 ## Task 004 — Poem Modal with Copy Button
 
+- [x] **004** — complete
+
 ### Route and templates
-- [ ] `GET /poems/<int:id>` JSON route.
-- [ ] `_poem_modal.html` partial included at end of `search.html`.
-- [ ] Include `static/js/search.js` in the page.
-- [ ] Add `role`, `tabindex`, `data-poem-id` on result rows.
+- [x] `GET /poems/<int:id>` JSON route.
+- [x] `_poem_modal.html` partial included at end of `search.html`.
+- [x] Include `static/js/search.js` in the page.
+- [x] Add `role`, `tabindex`, `data-poem-id` on result rows.
 
 ### JavaScript
-- [ ] `search.js` with `initModal`, `openModal`, `closeModal`, `copyPoem`.
-- [ ] Escape-to-close, backdrop-to-close, close-button-to-close.
-- [ ] Clipboard API with `document.execCommand` fallback.
-- [ ] In-flight `AbortController` on rapid clicks.
+- [x] `search.js` with `initModal`, `openModal`, `closeModal`, `copyPoem`.
+- [x] Escape-to-close, backdrop-to-close, close-button-to-close.
+- [x] Clipboard API with `document.execCommand` fallback.
+- [x] In-flight `AbortController` on rapid clicks.
 
 ### CSS
-- [ ] Modal overlay, card, `white-space: pre-wrap` body, responsive widths.
+- [x] Modal overlay, card, `white-space: pre-wrap` body, responsive widths.
 
 ### Tests
-- [ ] `test_poem_route.py` (200 with JSON, 404 for missing, line breaks preserved).
-- [ ] `test_modal_partial.py` (required elements present).
-- [ ] Observable: clicking a result opens modal; Copy copies to clipboard.
+- [x] `test_poem_route.py` (200 with JSON, 404 for missing, line breaks preserved).
+- [x] `test_modal_partial.py` (required elements present).
+- [x] Observable: clicking a result opens modal; Copy copies to clipboard.
 
 ---
 

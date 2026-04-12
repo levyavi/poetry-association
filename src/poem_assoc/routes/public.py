@@ -1,4 +1,7 @@
-from flask import Blueprint, current_app, render_template, request
+from flask import Blueprint, current_app, render_template, request, jsonify, abort
+
+from .. import repository
+from ..db import get_connection
 
 public_bp = Blueprint("public", __name__)
 
@@ -19,3 +22,20 @@ def search():
     search_service = current_app.extensions["search"]
     results = search_service.search(display_q)
     return render_template("search.html", q=display_q, results=results)
+
+
+@public_bp.route("/poems/<int:id>", methods=["GET"])
+def get_poem(id):
+    cfg = current_app.config["POEM_CONFIG"]
+    conn = get_connection(cfg.db_path)
+    try:
+        poem = repository.get_poem(conn, id)
+        if poem is None:
+            abort(404)
+        return jsonify({
+            "id": poem["id"],
+            "title": poem["title"],
+            "text": poem["text"]
+        })
+    finally:
+        conn.close()

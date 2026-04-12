@@ -1,243 +1,242 @@
-# Poetry Association Tool — V1 TODO Checklist
+# Poetry Association Tool — Delivery Checklist
 
-This checklist is the full, sequential set of items needed to build V1, derived from tasks 001–008. Follow the task files in `/tasks/` for the full specs; this list is a quick progress tracker.
+This checklist is the execution tracker for the full roadmap. V1 (`001`–`008`) is already complete. V2 starts at `009` and must be implemented strictly in order.
+
+The authoritative scope is [`docs/poetry_association_tool_v2_design_document.md`](docs/poetry_association_tool_v2_design_document.md). The authoritative task structure is [`docs/task_tempalte.md`](docs/task_tempalte.md).
 
 ---
 
-## Task 001 — Project Scaffold and Runnable Search Page Shell
+## Completed Baseline
 
-- [x] **001** — complete
+- [x] **001** Project scaffold and runnable Flask search page shell
+- [x] **002** Text cleaning, embedding service, repository, and CSV import CLI
+- [x] **003** Search pipeline and results rendering
+- [x] **004** Poem modal with Copy button
+- [x] **005** Admin authentication and sorted poem list
+- [x] **006** Admin manual add / edit / delete with embedding regeneration
+- [x] **007** CSV import admin UI with pre-confirm and cancellation
+- [x] **008** Rebuild all embeddings with application lock
 
-### Project setup
-- [x] Create `pyproject.toml` with Flask and pytest dependencies.
-- [x] Create `.gitignore` covering `*.db`, `__pycache__`, `.venv`, `.pytest_cache`, temp upload dirs.
-- [x] Create `.env.example` documenting `POEM_ADMIN_PASSWORD`, `POEM_DB_PATH`, `POEM_SECRET_KEY`.
-- [x] Create `sample_data/.gitkeep`.
+---
+
+## Task 009 — Persist Lemmatized Search Text and Bundle Offline NLP Resources
+
+- [ ] **009** complete
+
+### Packaging and config
+- [ ] Add `nltk` to runtime dependencies.
+- [ ] Package bundled local NLTK resources under `src/poem_assoc/resources/nltk_data/`.
+- [ ] Add config support for resolving and validating the local NLP resource path.
+- [ ] Add the V2 `SEARCH_INDEX_VERSION` constant.
 
 ### Source modules
-- [x] `src/poem_assoc/__init__.py`.
-- [x] `src/poem_assoc/__main__.py` running the Flask dev server.
-- [x] `src/poem_assoc/config.py` with `Config` dataclass and `from_environment`.
-- [x] `src/poem_assoc/db.py` with `init_db` and `get_connection`.
-- [x] `src/poem_assoc/app.py` with `create_app` that calls `init_db`.
-- [x] `src/poem_assoc/routes/__init__.py`.
-- [x] `src/poem_assoc/routes/public.py` with `GET /`.
+- [ ] Create `src/poem_assoc/lexical.py`.
+- [ ] Create `src/poem_assoc/index_metadata.py`.
+- [ ] Update `src/poem_assoc/db.py` to migrate existing V1 databases and create `app_metadata`.
+- [ ] Update `src/poem_assoc/app.py` to instantiate and register the lexical processor.
+- [ ] Update `src/poem_assoc/repository.py` to regenerate `lemmatized_search_text` on create and edit.
+- [ ] Update `src/poem_assoc/csv_import.py` to regenerate lexical derived data during import.
+- [ ] Update `src/poem_assoc/cli.py` to pass the lexical processor into CLI import execution.
+- [ ] Update `src/poem_assoc/rebuild.py` to regenerate `lemmatized_search_text` and mark metadata current only on full success.
+- [ ] Update `src/poem_assoc/routes/admin.py` to thread the lexical processor through add/edit/import/rebuild flows.
 
-### Templates and static
-- [x] `templates/base.html` with viewport meta, `{% block title %}`, `{% block content %}`.
-- [x] `templates/search.html` extending base, empty form with autofocus.
-- [x] `static/css/styles.css` with responsive baseline.
-
-### Schema
-- [x] `poems` table with `id, title, text, cleaned_text, embedding, created_at, updated_at`.
-- [x] `idx_poems_cleaned_text` index.
-- [x] `init_db` idempotent.
+### Schema and metadata
+- [ ] Add `lemmatized_search_text` to `poems`.
+- [ ] Create `app_metadata`.
+- [ ] Persist `schema_version`.
+- [ ] Persist `search_index_version`.
+- [ ] Persist `last_successful_full_rebuild_at`.
+- [ ] Mark fresh V2 databases current immediately.
+- [ ] Mark migrated V1 databases with a legacy/outdated search-index version.
 
 ### Tests
-- [x] `tests/conftest.py` with `temp_db_path`, `app`, `client` fixtures.
-- [x] `tests/test_scaffold.py` covering config, init_db, create_app, and search page markup.
-- [x] Smoke tests pass.
-- [x] Observable: `python -m poem_assoc` serves the search page on localhost:5000.
+- [ ] Create `tests/test_lexical.py`.
+- [ ] Create `tests/test_index_metadata.py`.
+- [ ] Update repository tests for lexical derived data.
+- [ ] Update CSV import tests for lexical derived data and partial-success preservation.
+- [ ] Update CLI import tests for lexical derived data.
+- [ ] Update rebuild tests for lexical regeneration and metadata behavior.
+- [ ] Verify packaged local NLP resources exist and are used offline.
+
+### Observable verification
+- [ ] New and migrated databases contain `lemmatized_search_text`.
+- [ ] Admin add/edit/import and CLI import persist non-empty lexical derived data.
+- [ ] Manual rebuild refreshes lexical derived data for the full corpus.
 
 ---
 
-## Task 002 — Text Cleaning, Embedding Service, Repository, and CSV Import CLI
+## Task 010 — Automatic Startup Rebuild for Outdated Search Indexes
 
-- [x] **002** — complete
+- [ ] **010** complete
 
-### Core modules
-- [x] `text_cleaning.py` with `clean_poem_text`, `compute_dedup_key`, `clean_query`.
-- [x] `embedding.py` with `EmbeddingService` (model loaded once, `encode`, `encode_query`, `to_bytes`, `from_bytes`).
-- [x] `repository.py` with `create_poem`, `get_poem`, `list_poems`, `find_by_cleaned_text`; `DuplicatePoemError`.
-- [x] `csv_import.py` with `plan`, `execute`, `ImportPlan`, `ImportResult`, `CsvFormatError`.
-- [x] `cli.py` with the `import-csv` subcommand.
-- [x] Update `__main__.py` to dispatch `import-csv` to CLI.
-- [x] Update `app.py` to instantiate `EmbeddingService` at startup and attach to `app.extensions`.
-- [x] Update `config.py` with `model_name`, `model_path`.
-- [x] Update `pyproject.toml` with `sentence-transformers`, `numpy`.
+### Source modules
+- [ ] Create `src/poem_assoc/startup_upgrade.py`.
+- [ ] Update `src/poem_assoc/app.py` to register and start the startup-upgrade coordinator.
+- [ ] Update `src/poem_assoc/rebuild.py` with the status/result details needed by automatic rebuild.
+- [ ] Update `src/poem_assoc/routes/public.py` to surface upgrade status and block search submissions while unavailable.
+- [ ] Update `src/poem_assoc/routes/admin.py` to block admin writes during startup upgrade while keeping read-only visibility.
 
-### Sample data
-- [x] `sample_data/sample_poems.csv` with ≥10 poems including duplicates.
-- [x] `tests/fixtures/fixture_poems.csv` for deterministic tests.
+### Templates and styles
+- [ ] Update `templates/search.html` with upgrade-in-progress and upgrade-failed states.
+- [ ] Update `templates/admin/_base.html` with a persistent upgrade banner.
+- [ ] Update `templates/admin/dashboard.html` so the explicit rebuild action is the retry path after failure.
+- [ ] Update `static/css/styles.css` with upgrade status styles.
+
+### Upgrade behavior
+- [ ] Detect legacy/outdated `search_index_version` on startup.
+- [ ] Launch automatic rebuild exactly once per process when required.
+- [ ] Keep public search disabled while upgrade is running.
+- [ ] Keep admin writes disabled while upgrade is running.
+- [ ] Keep search disabled if startup rebuild fails.
+- [ ] Refresh the in-memory search cache on successful startup rebuild.
+- [ ] Update metadata to current only after success.
 
 ### Tests
-- [x] `test_text_cleaning.py`.
-- [x] `test_embedding.py` (unit-normalization, determinism, serialization).
-- [x] `test_repository.py` (insert, duplicate rejection, sort).
-- [x] `test_csv_import.py` (plan, execute, cancellation, partial failure).
-- [x] `test_cli_import.py` (real subprocess invocation).
-- [x] All tests pass with real SQLite + real model.
-- [x] Observable: CLI imports sample CSV, DB has rows with non-null embeddings.
+- [ ] Create `tests/test_startup_upgrade.py`.
+- [ ] Update public route tests for startup-upgrade availability states.
+- [ ] Update admin dashboard tests for read-only visibility during upgrade.
+- [ ] Update rebuild route gating tests for startup-upgrade blocking.
+- [ ] Verify success, failure, retry, and no-op-current-version cases.
+
+### Observable verification
+- [ ] Old installs show `search data is being upgraded` on startup.
+- [ ] Search/admin writes remain blocked until rebuild succeeds.
+- [ ] Failure state is surfaced clearly and remains blocked until retry.
 
 ---
 
-## Task 003 — Search Pipeline and Results Rendering
+## Task 011 — Exact Lexical Matching and Combined Search Ranking
 
-- [x] **003** — complete
+- [ ] **011** complete
 
-### Modules
-- [x] `constants.py` with threshold values and `label_for`.
-- [x] `search.py` with `SearchService`, `SearchResult`, preview truncation.
-- [x] Update `repository.py` with `iter_embeddings`.
-- [x] Update `app.py` to attach `SearchService`.
-- [x] Update `routes/public.py` with `POST /search`.
+### Scoring constants
+- [ ] Centralize semantic weight.
+- [ ] Centralize lexical weight.
+- [ ] Centralize hard semantic floor.
+- [ ] Centralize exact lexical match value.
+- [ ] Centralize synonym lexical match value for later use.
+- [ ] Centralize label thresholds and result limit.
 
-### Templates and CSS
-- [x] `_results.html` partial.
-- [x] Update `search.html` to include results and preserve query value.
-- [x] Update `styles.css` with results list, relevance badges, hover highlight.
-- [x] Query context line `Results for: "..."`.
+### Search behavior
+- [ ] Extend `lexical.py` with query-term building.
+- [ ] Extend `search.py` to preload lexical match data in memory.
+- [ ] Compute full-corpus `semantic_score`.
+- [ ] Compute exact-only `lexical_score` across all meaningful query words.
+- [ ] Average lexical evidence across multi-word queries.
+- [ ] Zero lexical contribution below the semantic floor.
+- [ ] Compute `final_score`.
+- [ ] Sort by `final_score` descending and title ascending.
+- [ ] Base relevance labels on `final_score`.
 
 ### Tests
-- [x] `test_search_service.py` covering labels, tie-break, empty query, fewer-than-5 corpus.
-- [x] `test_search_route.py` covering POST + rendering + input persistence.
-- [x] `tests/fixtures/__init__.py` helpers for synthetic vectors.
-- [x] Observable: typing a query on the search page returns up to 5 labeled results.
+- [ ] Create `tests/test_search_v2_exact.py`.
+- [ ] Create `tests/fixtures/fixture_v2_exact.csv`.
+- [ ] Update existing search service tests for combined-score ranking and labels.
+- [ ] Update public route tests to confirm unchanged UI behavior with new ranking.
+- [ ] Verify exact-match promotion, multi-word averaging, no stacking, and floor behavior.
+
+### Observable verification
+- [ ] Search ranking reflects exact lexical coverage plus semantic similarity.
+- [ ] Search still returns exactly 5 results.
+- [ ] Public UI stays unchanged.
 
 ---
 
-## Task 004 — Poem Modal with Copy Button
+## Task 012 — WordNet Synonym Expansion with Configurable Lexical Boost
 
-- [x] **004** — complete
+- [ ] **012** complete
 
-### Route and templates
-- [x] `GET /poems/<int:id>` JSON route.
-- [x] `_poem_modal.html` partial included at end of `search.html`.
-- [x] Include `static/js/search.js` in the page.
-- [x] Add `role`, `tabindex`, `data-poem-id` on result rows.
+### Config and source modules
+- [ ] Add `ENABLE_SYNONYM_EXPANSION` to config with default enabled.
+- [ ] Create `src/poem_assoc/synonyms.py`.
+- [ ] Extend `src/poem_assoc/lexical.py` with POS-tagged query terms.
+- [ ] Update `src/poem_assoc/search.py` to apply synonym fallback scoring.
+- [ ] Update `src/poem_assoc/app.py` to instantiate the synonym expander.
 
-### JavaScript
-- [x] `search.js` with `initModal`, `openModal`, `closeModal`, `copyPoem`.
-- [x] Escape-to-close, backdrop-to-close, close-button-to-close.
-- [x] Clipboard API with `document.execCommand` fallback.
-- [x] In-flight `AbortController` on rapid clicks.
-
-### CSS
-- [x] Modal overlay, card, `white-space: pre-wrap` body, responsive widths.
+### Synonym rules
+- [ ] Expand only nouns and adjectives.
+- [ ] Use only the top 1 synset.
+- [ ] Discard multi-word synonyms.
+- [ ] Exclude the original query word from its synonym list.
+- [ ] Exclude stopwords and invalid terms.
+- [ ] Normalize and deduplicate after normalization.
+- [ ] Cap surviving synonyms at 5 per eligible query word.
+- [ ] Preserve exact-match precedence over synonym matches.
 
 ### Tests
-- [x] `test_poem_route.py` (200 with JSON, 404 for missing, line breaks preserved).
-- [x] `test_modal_partial.py` (required elements present).
-- [x] Observable: clicking a result opens modal; Copy copies to clipboard.
+- [ ] Create `tests/test_synonyms.py`.
+- [ ] Create `tests/fixtures/fixture_v2_synonyms.csv`.
+- [ ] Update search tests to cover synonym-only retrieval, config-flag rollback, and mixed exact/synonym multi-word queries.
+- [ ] Verify verbs and adverbs are not synonym-expanded.
+- [ ] Verify no-usable-synonyms fallback behavior.
+
+### Observable verification
+- [ ] Synonym-only poems can rank better when semantic similarity passes the floor.
+- [ ] Setting `ENABLE_SYNONYM_EXPANSION=false` removes synonym boosts without removing exact lexical matching.
+- [ ] Public UI still exposes no synonym-specific controls.
 
 ---
 
-## Task 005 — Admin Authentication and Sorted Poem List
+## Task 013 — Synonym Cache, Search Diagnostics, and V2 Regression Hardening
 
-- [x] **005** — complete
+- [ ] **013** complete
 
-### Modules
-- [x] `auth.py` with `is_authenticated`, `login`, `logout`, `verify_password`, `login_required`.
-- [x] `routes/admin.py` with login / logout / dashboard views.
-- [x] Update `app.py` to register admin blueprint and validate `POEM_ADMIN_PASSWORD` is non-empty.
-- [x] Update `repository.list_poems` to accept `order_by` with a whitelist.
+### Config and runtime behavior
+- [ ] Add local log-level configuration.
+- [ ] Add process-lifetime synonym cache keyed by normalized eligible query word.
+- [ ] Keep cache reset behavior tied to process restart only.
+- [ ] Emit structured local diagnostics from the search path.
 
-### Templates
-- [x] `admin/_base.html` shared layout.
-- [x] `admin/login.html`.
-- [x] `admin/dashboard.html` with sort dropdown and placeholder action columns.
-- [x] Admin CSS additions.
+### Required logged fields
+- [ ] Original query
+- [ ] Normalized semantic query
+- [ ] Lexical query words after stopword removal
+- [ ] POS tags used for synonym eligibility
+- [ ] Synonym expansions actually used
+- [ ] Cache hit/miss status
+- [ ] Per-result semantic score
+- [ ] Per-result lexical score
+- [ ] Per-result final score
+- [ ] Per-result exact vs synonym match reason by query word
+- [ ] Triggering synonym when a synonym match occurs
 
-### Tests
-- [x] `test_auth.py` (verify_password, empty-env rejection, session helpers).
-- [x] `test_admin_dashboard.py` (redirect when unauthenticated, login flow, dashboard render, sort options, logout).
-- [x] Public routes still work unauthenticated.
-- [x] Observable: `/admin` requires password, dashboard shows sorted poem list.
+### Regression assets and tests
+- [ ] Create `tests/fixtures/fixture_v2_regression.csv`.
+- [ ] Create `tests/test_search_diagnostics.py`.
+- [ ] Create `tests/test_v2_regression.py`.
+- [ ] Extend startup-upgrade tests with final V2 acceptance coverage.
+- [ ] Extend rebuild tests with regression-corpus lexical regeneration coverage.
+- [ ] Verify deterministic search ordering for fixed fixture data.
+- [ ] Verify cache hit on repeated eligible-word searches in the same process.
+- [ ] Verify diagnostics remain local-only and omit full poem text.
 
----
-
-## Task 006 — Admin Manual Add / Edit / Delete with Embedding Regeneration
-
-- [x] **006** — complete
-
-### Modules
-- [x] `csrf.py` with `issue_token`, `verify_token`, registered Jinja global.
-- [x] Update `repository.py` with `update_poem`, `delete_poem`, `PoemNotFoundError`.
-- [x] Update `routes/admin.py` with add / edit / delete views (GET + POST + confirm).
-- [x] `SearchService.refresh()` called after every successful mutation.
-
-### Templates
-- [x] `admin/add.html`.
-- [x] `admin/edit.html` pre-populated.
-- [x] `admin/delete_confirm.html` showing preview.
-- [x] Update dashboard to link add / edit / delete.
-- [x] Flash messages rendered in `admin/_base.html`.
-- [x] CSS for forms and confirmation.
-
-### Tests
-- [x] `test_csrf.py`.
-- [x] `test_admin_add.py` (success, duplicate blocked, empty text blocked).
-- [x] `test_admin_edit.py` (success, duplicate blocked, 404 missing).
-- [x] `test_admin_delete.py` (confirm flow, row removed).
-- [x] Mutation routes require auth + CSRF.
-- [x] Observable: admin can fully CRUD poems; changes visible in search.
+### Observable verification
+- [ ] Repeated searches reuse cached synonym expansions.
+- [ ] Local logs contain the required diagnostics when enabled.
+- [ ] Final V2 acceptance coverage exists for upgrade, ranking, and regeneration behavior.
 
 ---
 
-## Task 007 — CSV Import Admin UI with Pre-Confirm and Cancellation
+## Cross-Cutting V2 Verification
 
-- [x] **007** — complete
-
-### Modules
-- [x] `import_state.py` with `ImportSession`, `create`, `get`, `cancel`, `discard`, `cleanup_expired`.
-- [x] Update `csv_import.execute` to honor `cancel_flag` and `on_progress` (no-op by default).
-- [x] Update `routes/admin.py` with `import_upload`, `import_preview`, `import_confirm`, `import_cancel`.
-- [x] Update `config.py` with `import_temp_dir`.
-- [x] `admin/_base.html` nav link to Import CSV.
-- [x] CSS for upload / preview / result screens.
-
-### Templates
-- [x] `admin/import_upload.html`.
-- [x] `admin/import_preview.html`.
-- [x] `admin/import_result.html`.
-
-### Fixtures
-- [x] `tests/fixtures/fixture_import.csv` with duplicates.
-- [x] `tests/fixtures/fixture_import_bad_headers.csv`.
-- [x] `tests/fixtures/fixture_import_partial_failure.csv`.
-
-### Tests
-- [x] `test_admin_import_upload.py` (preview counts, bad headers rejected, auth, CSRF).
-- [x] `test_admin_import_execute.py` (confirm writes rows, duplicates skipped, temp cleanup, search cache refresh).
-- [x] `test_admin_import_cancellation.py` (cancel mid-import preserves prior rows).
-- [x] Partial failure fixture preserves rows 1..K-1.
-- [x] Observable: admin uploads CSV, sees counts, confirms, and poems appear in search.
-
----
-
-## Task 008 — Rebuild All Embeddings with Application Lock
-
-- [x] **008** — complete
-
-### Modules
-- [x] `locks.py` with `RebuildLock` (thread-safe acquire/release/is_rebuilding).
-- [x] `rebuild.py` with `run_rebuild` iterating every poem.
-- [x] `admin.rebuild_all` POST view (acquire → run → refresh → release).
-- [x] `public.search` checks lock; returns 503 when rebuilding.
-- [x] `admin.reject_if_rebuilding` helper wired into every mutation view (add, edit, delete, import preview, confirm, cancel).
-
-### Templates
-- [x] Dashboard `Rebuild all embeddings` button (CSRF).
-- [x] `admin/rebuild_result.html`.
-- [x] Rebuild-in-progress banner in `admin/_base.html`.
-- [x] Search 503 page message.
-- [x] CSS for banner and result.
-
-### Tests
-- [x] `test_locks.py` (acquire/release semantics, second-acquire fails, release-without-acquire safe).
-- [x] `test_rebuild.py` (all embeddings regenerated, partial failure commits prior rows, row count unchanged).
-- [x] `test_rebuild_route_gating.py` (search 503, every mutation blocked, second rebuild rejected, lock released on failure).
-- [x] Observable: rebuild button refreshes every embedding; concurrent search/admin writes are blocked during rebuild.
-
----
-
-## Cross-Cutting Verification (after Task 008)
-
-- [ ] All acceptance criteria from design doc §17 are demonstrated end-to-end on Windows with no network access.
-- [ ] App starts with `python -m poem_assoc` and is reachable at `http://localhost:5000/`.
-- [ ] Public search page works unauthenticated; admin page requires the env-configured password.
-- [ ] Add, edit, delete, CSV import, and rebuild all work from the admin UI.
-- [ ] Duplicates are blocked based on cleaned text, case-sensitive, for both manual save and CSV import.
-- [ ] Partial CSV imports are preserved on failure and on cancellation.
-- [ ] Rebuild disables search and admin writes for the duration.
-- [ ] `pytest` full suite passes with real SQLite and the real local model.
+- [ ] Every V2 requirement in the design document is mapped to at least one task.
+- [ ] No V2 task includes out-of-scope functionality.
+- [ ] No forward dependency exists in `009`–`013`.
+- [ ] Each task leaves the system runnable by the end of the task.
+- [ ] Each task produces an observable outcome.
+- [ ] Each task remains a vertical slice rather than an isolated layer.
+- [ ] No placeholder implementations or TODO-based scaffolding are required.
+- [ ] Search stays fully offline on Windows after installation.
+- [ ] Required local WordNet and NLTK resources are bundled.
+- [ ] Existing installs automatically rebuild on first startup after upgrade.
+- [ ] `lemmatized_search_text` is populated for all poems after upgrade and rebuild.
+- [ ] Search still returns exactly 5 results.
+- [ ] Ranking uses `0.8 * semantic + 0.2 * lexical`.
+- [ ] Exact lexical matching applies to all non-stopword query words.
+- [ ] Synonym expansion applies only to nouns and adjectives.
+- [ ] Top-1 synset, single-word-only, max-5 synonym rules are enforced.
+- [ ] Lexical boost is disabled below the semantic floor.
+- [ ] Relevance labels use combined score thresholds.
+- [ ] Synonym expansion can be disabled through configuration.
+- [ ] Basic local logging and in-memory synonym caching exist.
+- [ ] `pytest` passes with real SQLite, real filesystem fixture files, and local NLP resources.

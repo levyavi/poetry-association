@@ -1,95 +1,155 @@
 # Poetry Association Tool
 
-A private, offline-first semantic search tool for a curated poem collection. Enter a word or short phrase and retrieve the top five poems most semantically associated with that query, powered by a local embedding model.
+A private, offline-first local search tool for a curated poem collection. Version 2 keeps the existing embedding-based search workflow and adds a conservative lexical signal built from bundled NLTK resources and local WordNet synonyms.
 
-The full product specification lives in [`docs/poetry_association_tool_design_document.md`](docs/poetry_association_tool_design_document.md). That document is the authoritative source for scope, constraints, and acceptance behavior.
+The authoritative V2 scope, constraints, and acceptance behavior live in [`docs/poetry_association_tool_v2_design_document.md`](docs/poetry_association_tool_v2_design_document.md). The required task structure lives in [`docs/task_tempalte.md`](docs/task_tempalte.md).
 
 ---
 
-## V1 Scope
+## Project Purpose
 
-Version 1 is a minimal, local-only web application with a fixed feature set:
+The application is a Windows-first local web app for one private poet user. It stores poems in SQLite, runs fully offline, and returns the top 5 poems for a word or short phrase query. V1 already delivers:
 
-- **Public search page** — no authentication. Enter a query, get up to 5 ranked results with fixed-threshold relevance labels (`Strong`, `Moderate`, `Weak`).
-- **Result modal** — click a result to open the full poem in an overlay with preserved line breaks and a Copy button.
-- **Admin page** — password-protected via environment variable. Supports:
-  - Manual add / edit / delete of poems
-  - CSV import with strict `title,text` format, duplicate skipping, pre-confirm counts, cancellation, and partial-preservation semantics
-  - Full rebuild of all embeddings, with search and admin writes disabled during the rebuild
-  - Six poem list sort orders
-- **Local SQLite** for storage.
-- **Local embedding model** `all-MiniLM-L6-v2` (must be pre-installed — no runtime download).
-- **Windows target**, started manually via `python -m poem_assoc` and opened in a browser.
+- semantic embedding search
+- modal poem viewing
+- password-protected admin CRUD
+- CSV import
+- rebuild with write/search gating
 
-Explicitly out of V1: public user accounts, analytics, keyword highlighting, similarity explanations, backup/restore, export, cloud APIs, keyboard navigation beyond Enter-to-search, and anything else listed as "Non-goals" in design doc §2.2 or "Future work" in §18.
+V2 extends that baseline with a second ranking signal while preserving the same simple public UI.
+
+---
+
+## V2 Scope
+
+Version 2 is limited to the behavior defined in the V2 design document:
+
+- Keep semantic similarity as the dominant ranking signal.
+- Add exact lexical matching against persisted lemmatized poem text.
+- Add conservative WordNet synonym expansion only for eligible noun/adjective query terms.
+- Keep the system fully offline by bundling all required local NLP resources.
+- Automatically rebuild outdated search data on startup after upgrade.
+- Keep the public UI implicit: no synonym controls, no debug panel, no new search modes.
+- Provide a global rollback flag for synonym expansion.
+- Add local-only logging and an in-memory synonym cache for debugging and tuning.
+
+Explicitly out of scope for V2: phrase-level thesaurus expansion, verb/adverb expansion, negation handling, user-facing explanations, admin synonym editing, remote services, or any cloud dependency.
 
 ---
 
 ## Architecture Overview
 
-```
-┌────────────────────────┐
-│ Browser (search page)  │──── POST /search ────┐
-│   + result modal       │                       │
-│   + admin pages        │                       ▼
-└────────────┬───────────┘          ┌────────────────────────┐
-             │                      │ Flask app (synchronous)│
-             │   GET /poems/<id>    │                        │
-             └──────────────────────┤  public blueprint      │
-                                    │  admin blueprint       │
-                                    │                        │
-                                    │  ┌──────────────────┐  │
-                                    │  │ SearchService    │  │
-                                    │  │  (in-memory      │  │
-                                    │  │   embedding      │  │
-                                    │  │   cache)         │  │
-                                    │  └───────┬──────────┘  │
-                                    │          │             │
-                                    │  ┌───────▼──────────┐  │
-                                    │  │ EmbeddingService │  │
-                                    │  │  all-MiniLM-L6-v2│  │
-                                    │  └───────┬──────────┘  │
-                                    │          │             │
-                                    │  ┌───────▼──────────┐  │
-                                    │  │ Repository       │  │
-                                    │  └───────┬──────────┘  │
-                                    │          │             │
-                                    │     SQLite (poems.db)  │
-                                    │                        │
-                                    │  RebuildLock gates     │
-                                    │  search + mutations    │
-                                    └────────────────────────┘
+```text
+┌───────────────────────────┐
+│ Browser                   │
+│  public search page       │
+│  modal poem viewer        │
+│  admin dashboard          │
+└─────────────┬─────────────┘
+              │
+              ▼
+┌──────────────────────────────────────────────────────────┐
+│ Flask app                                               │
+│                                                          │
+│  public routes        admin routes                       │
+│  startup-upgrade gate  rebuild/write gate                │
+│                                                          │
+│  StartupUpgradeCoordinator                              │
+│          │                                               │
+│          ▼                                               │
+│  SearchService                                           │
+│   ├─ semantic path → EmbeddingService                    │
+│   ├─ lexical path  → LexicalTextProcessor                │
+│   └─ synonym path  → SynonymExpander                     │
+│                                                          │
+│  Rebuild pipeline                                        │
+│   ├─ regenerates embeddings                              │
+│   ├─ regenerates lemmatized_search_text                  │
+│   └─ updates search index metadata                       │
+└─────────────┬────────────────────────────────────────────┘
+              │
+              ▼
+┌──────────────────────────────────────────────────────────┐
+│ SQLite                                                  │
+│  poems                                                  │
+│   - id, title, text, cleaned_text, embedding            │
+│   - lemmatized_search_text                              │
+│  app_metadata                                           │
+│   - schema_version                                      │
+│   - search_index_version                                │
+│   - last_successful_full_rebuild_at                     │
+└──────────────────────────────────────────────────────────┘
 ```
 
-Key modules (fully listed in the file system layout below):
+### Key V2 runtime modules
 
-| Layer              | Module                                | Responsibility                                                                 |
-|--------------------|---------------------------------------|--------------------------------------------------------------------------------|
-| Entry              | `poem_assoc.__main__`                 | CLI dispatch: runserver (default) or `import-csv`                              |
-| App                | `poem_assoc.app`                      | `create_app` factory — wires config, DB, embedding, search, locks, blueprints  |
-| Config             | `poem_assoc.config`                   | Env-driven configuration dataclass                                             |
-| Persistence        | `poem_assoc.db`, `poem_assoc.repository` | SQLite schema + poem CRUD                                                    |
-| Text               | `poem_assoc.text_cleaning`            | Cleaning, dedup key, query normalization                                       |
-| Embeddings         | `poem_assoc.embedding`                | Loads `all-MiniLM-L6-v2` once per process, encodes, (de)serializes             |
-| Search             | `poem_assoc.search`, `poem_assoc.constants` | Cosine ranking, relevance labels, in-memory cache                          |
-| CSV import         | `poem_assoc.csv_import`, `poem_assoc.import_state` | Strict parser, plan/execute split, cancellation                        |
-| Admin              | `poem_assoc.routes.admin`             | Login, dashboard, CRUD, CSV import UI, rebuild button                          |
-| Auth + CSRF        | `poem_assoc.auth`, `poem_assoc.csrf`  | Password session auth, timing-safe compare, per-session CSRF token             |
-| Rebuild + locks    | `poem_assoc.rebuild`, `poem_assoc.locks` | Full rebuild + process-wide `RebuildLock`                                   |
+| Module | Responsibility |
+|---|---|
+| `poem_assoc.lexical` | shared normalization, lemmatization, lexical text generation, query-term building |
+| `poem_assoc.index_metadata` | search index compatibility state and rebuild metadata |
+| `poem_assoc.startup_upgrade` | automatic first-start rebuild coordination |
+| `poem_assoc.search` | corpus-wide semantic + lexical + synonym scoring |
+| `poem_assoc.synonyms` | conservative local WordNet expansion |
+| `poem_assoc.rebuild` | full regeneration of embeddings and lexical derived data |
 
 ---
 
-## File System Layout (V1)
+## V2 Roadmap
 
+### Major workstreams
+
+1. **Offline NLP and lexical index foundation**  
+   Bundle local NLTK resources, add persisted `lemmatized_search_text`, and regenerate it on every write path.
+
+2. **Upgrade orchestration and safe availability gating**  
+   Detect outdated search indexes on startup, rebuild automatically, and keep search/admin writes blocked until the upgrade completes.
+
+3. **Combined ranking with exact lexical evidence**  
+   Move from semantic-only ranking to full-corpus combined scoring while keeping the public UI unchanged.
+
+4. **Conservative synonym expansion with rollback control**  
+   Add noun/adjective-only WordNet expansion behind a config flag.
+
+5. **Diagnostics, cache behavior, and regression hardening**  
+   Add required local logging, process-lifetime synonym caching, and deterministic acceptance coverage.
+
+### Dependency graph
+
+```text
+008 → 009 → 010 → 011 → 012 → 013
 ```
+
+### Ordered tasks
+
+| # | Task | Complexity | Observable Outcome |
+|---|---|---|---|
+| 009 | Persist lemmatized search text and bundle offline NLP resources | High | DB schema gains `lemmatized_search_text` + metadata; all write paths regenerate lexical derived data |
+| 010 | Automatic startup rebuild for outdated search indexes | High | Old installs auto-rebuild on startup; search/admin writes are gated with clear status messaging |
+| 011 | Exact lexical matching and combined search ranking | Medium | Search ranking and labels switch to full combined scoring while UI stays the same |
+| 012 | WordNet synonym expansion with configurable lexical boost | High | Synonym-only matches improve recall; `ENABLE_SYNONYM_EXPANSION` provides rollback |
+| 013 | Synonym cache, search diagnostics, and V2 regression hardening | Medium | Repeated searches reuse cached expansions; local logs and deterministic regression coverage exist |
+
+### Dependency reasoning
+
+- `009` comes first because every later V2 feature depends on persisted lexical text and search-index metadata.
+- `010` must precede ranking changes so migrated V1 databases are rebuilt before search consumes V2 fields.
+- `011` introduces combined scoring with the lowest-risk lexical slice: exact matches only.
+- `012` adds synonyms only after combined exact lexical scoring is stable, which keeps synonym regressions isolated and rollback-safe.
+- `013` finishes the design-doc requirements that are operational rather than functional: cache behavior, logging, and final regression coverage.
+
+Every task is intended to leave the system runnable, integrated, and dependency-correct without relying on future tasks.
+
+---
+
+## Final File System Layout (V2)
+
+```text
 poem_assoc/
 ├── README.md
 ├── pyproject.toml
-├── .env.example
-├── .gitignore
-├── poem_assoc.db               (generated at runtime, gitignored)
 ├── docs/
 │   ├── poetry_association_tool_design_document.md
+│   ├── poetry_association_tool_v2_design_document.md
 │   ├── task_tempalte.md
 │   └── todo.md
 ├── tasks/
@@ -100,7 +160,12 @@ poem_assoc/
 │   ├── 005.md
 │   ├── 006.md
 │   ├── 007.md
-│   └── 008.md
+│   ├── 008.md
+│   ├── 009.md
+│   ├── 010.md
+│   ├── 011.md
+│   ├── 012.md
+│   └── 013.md
 ├── sample_data/
 │   └── sample_poems.csv
 ├── src/
@@ -108,24 +173,30 @@ poem_assoc/
 │       ├── __init__.py
 │       ├── __main__.py
 │       ├── app.py
-│       ├── config.py
-│       ├── db.py
-│       ├── text_cleaning.py
-│       ├── embedding.py
-│       ├── repository.py
-│       ├── constants.py
-│       ├── search.py
-│       ├── csv_import.py
-│       ├── import_state.py
 │       ├── auth.py
+│       ├── cli.py
+│       ├── config.py
+│       ├── constants.py
 │       ├── csrf.py
+│       ├── csv_import.py
+│       ├── db.py
+│       ├── embedding.py
+│       ├── import_state.py
+│       ├── index_metadata.py
+│       ├── lexical.py
 │       ├── locks.py
 │       ├── rebuild.py
-│       ├── cli.py
+│       ├── repository.py
+│       ├── search.py
+│       ├── startup_upgrade.py
+│       ├── synonyms.py
+│       ├── text_cleaning.py
+│       ├── resources/
+│       │   └── nltk_data/
 │       ├── routes/
 │       │   ├── __init__.py
-│       │   ├── public.py
-│       │   └── admin.py
+│       │   ├── admin.py
+│       │   └── public.py
 │       ├── templates/
 │       │   ├── base.html
 │       │   ├── search.html
@@ -148,129 +219,76 @@ poem_assoc/
 │           └── js/
 │               └── search.js
 └── tests/
-    ├── __init__.py
-    ├── conftest.py
     ├── fixtures/
-    │   ├── __init__.py
     │   ├── fixture_poems.csv
-    │   ├── fixture_import.csv
-    │   ├── fixture_import_bad_headers.csv
-    │   └── fixture_import_partial_failure.csv
-    ├── test_scaffold.py
-    ├── test_text_cleaning.py
-    ├── test_embedding.py
-    ├── test_repository.py
-    ├── test_csv_import.py
-    ├── test_cli_import.py
-    ├── test_search_service.py
-    ├── test_search_route.py
-    ├── test_poem_route.py
-    ├── test_modal_partial.py
-    ├── test_auth.py
-    ├── test_admin_dashboard.py
-    ├── test_csrf.py
-    ├── test_admin_add.py
-    ├── test_admin_edit.py
-    ├── test_admin_delete.py
-    ├── test_admin_import_upload.py
-    ├── test_admin_import_execute.py
-    ├── test_admin_import_cancellation.py
-    ├── test_locks.py
-    ├── test_rebuild.py
-    └── test_rebuild_route_gating.py
+    │   ├── fixture_v2_exact.csv
+    │   ├── fixture_v2_synonyms.csv
+    │   └── fixture_v2_regression.csv
+    ├── test_lexical.py
+    ├── test_index_metadata.py
+    ├── test_startup_upgrade.py
+    ├── test_search_v2_exact.py
+    ├── test_synonyms.py
+    ├── test_search_diagnostics.py
+    ├── test_v2_regression.py
+    └── ... existing V1 tests updated as needed
 ```
 
 ---
 
 ## Execution Plan
 
-Tasks are executed strictly in order. Each task produces an observable outcome and leaves the system runnable. See the matching file under `tasks/NNN.md` for the full specification.
+Implementation should follow the tasks exactly in numeric order:
 
-| # | Task                                                                 | Complexity | Observable Outcome                                                                 |
-|---|----------------------------------------------------------------------|------------|-------------------------------------------------------------------------------------|
-| 001 | Project scaffold and runnable Flask search page shell              | Medium     | `python -m poem_assoc` serves the search page; SQLite schema is created            |
-| 002 | Text cleaning, embedding service, repository, CSV import CLI       | High       | `python -m poem_assoc import-csv sample.csv` populates DB with embeddings          |
-| 003 | Search pipeline and results rendering with relevance labels        | Medium     | Typing a query returns up to 5 labeled results                                     |
-| 004 | Poem modal with Copy button                                        | Low        | Clicking a result opens the full poem; Copy button works                           |
-| 005 | Admin authentication and sorted poem list                          | Medium     | `/admin` requires password; dashboard lists poems with six sort options            |
-| 006 | Admin manual add / edit / delete with embedding regeneration       | High       | Admin can fully CRUD poems; duplicates blocked; search stays consistent            |
-| 007 | Admin CSV import with pre-confirm counts and cancellation          | High       | Admin uploads CSV, sees counts, confirms; cancellation and partial failure handled |
-| 008 | Rebuild all embeddings with application lock                       | High       | Rebuild button regenerates embeddings; search and admin writes blocked during      |
+1. Build the lexical data foundation and ship bundled local NLP resources.
+2. Add automatic upgrade rebuild so old installs are safe before search starts using V2 data.
+3. Switch ranking to combined semantic + exact lexical scoring.
+4. Layer in conservative synonym expansion with the rollback flag.
+5. Finish with cache/logging/regression hardening.
 
-**Dependency graph** (forward-only):
+This order prevents forward dependencies and avoids modifying future tasks to make earlier tasks workable.
 
-```
-001 → 002 → 003 → 004
-         ↘
-           005 → 006 → 007 → 008
-```
+---
 
-### Dependency reasoning
+## Testing Strategy
 
-- **001 → everything**: all later tasks depend on the app factory, config, and schema.
-- **002 → 003**: search uses the embedding service and repository, and expects non-empty data.
-- **003 → 004**: the modal is wired to the result row elements that 003 renders.
-- **002 + 001 → 005**: the admin dashboard uses the repository (002) and the config-driven password (001).
-- **003 + 005 → 006**: admin CRUD invalidates the search cache added in 003 and is registered on the admin blueprint from 005.
-- **002 + 006 → 007**: CSV import UI reuses the `plan`/`execute` split (002) and the CSRF + flash infrastructure (006).
-- **006 + 007 → 008**: the rebuild lock must gate every mutation route introduced in 006 and 007 plus the public search from 003.
+The V2 test plan stays aligned with the task template and the design document:
 
-Every task can be implemented without modifying future tasks, and every task leaves the system in a valid, runnable state.
+1. Use real SQLite files for all persistence tests.
+2. Use real filesystem fixture CSVs for import and regression coverage.
+3. Use bundled local NLTK resources and the real local embedding model; no runtime downloads.
+4. Avoid mocks unless strictly necessary for forced-failure paths that cannot be exercised otherwise.
+5. Keep search tests deterministic by using curated fixture corpora and the existing deterministic helpers where needed.
+6. Cover both feature behavior and lifecycle behavior:
+   - lexical data generation on add/edit/import/rebuild
+   - automatic startup rebuild
+   - exact lexical ranking
+   - synonym ranking
+   - cache/logging behavior
+   - final V2 acceptance and determinism
+
+Run the full suite with `pytest`.
 
 ---
 
 ## Running the App
 
 ```bash
-# First-time setup (in a virtualenv)
-pip install -e .
-
-# Ensure the embedding model is available locally
-# (pre-download into the sentence-transformers cache or point POEM_MODEL_PATH at a local directory)
-
-# Set the admin password
-export POEM_ADMIN_PASSWORD="<your-private-password>"      # Linux / macOS
-$env:POEM_ADMIN_PASSWORD = "<your-private-password>"      # PowerShell
-
-# Run the server
+pip install -e .[dev]
 python -m poem_assoc
-# → http://localhost:5000/
-
-# Load poems from a CSV file via the CLI
-python -m poem_assoc import-csv sample_data/sample_poems.csv
 ```
 
----
+Operational constraints:
 
-## Testing Strategy
-
-The test suite is built around the constraints in design doc §15 and the testing rules in the task template.
-
-1. **Real SQLite for every persistence test.** Each test uses a pytest `tmp_path` to create a fresh DB file; no in-memory connections, no mocked rows.
-2. **Real filesystem for CSV tests.** Fixture CSVs live under `tests/fixtures/` and are opened by the import code exactly as production would.
-3. **Real local embedding model.** A session-scoped fixture loads `all-MiniLM-L6-v2` once and shares it across tests. This gives honest coverage of the encoding pipeline without repeated model-load cost.
-4. **Mocks are avoided** except for small injection points that cannot be exercised any other way:
-   - Forced-failure tests for the rebuild loop and the CSV import partial-failure case monkey-patch `repository.create_poem` / the embedding service to raise on a specific row.
-   - Cancellation tests inject a `cancel_flag` callable.
-5. **End-to-end coverage**: integration tests drive the Flask test client through the real request pipeline for every route — public search, modal JSON fetch, admin login, admin CRUD, admin CSV import, and admin rebuild.
-6. **Deterministic ranking tests** may write synthetic embedding vectors directly into the repository via a test helper so that tie-breaking and label threshold tests are not dependent on the exact outputs of the model.
-
-### Test layering
-
-- **Unit tests**: text cleaning rules, dedup key normalization, query normalization, label thresholds, embedding serialization, CSRF token, lock semantics.
-- **Integration tests**: repository, search service, CSV planner and executor, every Flask route.
-- **Filesystem tests**: DB file creation, CSV import cleanup, temp file lifecycle.
-- **Persistence tests**: direct SQLite queries to verify state after writes, cancellation, and rebuild.
-- **UI tests**: Jinja template rendering assertions (badges, flash messages, CSRF tokens, `Untitled` fallback, modal structure).
-- **Performance smoke tests**: generous bounds (e.g., "import 10 poems in under 10 seconds") to catch pathological regressions without becoming flaky.
-
-Run the full suite with `pytest`.
+- the sentence-transformers model must already exist locally
+- the bundled NLTK resources must be present locally
+- the app must remain fully offline at runtime
 
 ---
 
 ## Further Reading
 
-- Design document (authoritative scope): `docs/poetry_association_tool_design_document.md`
-- Task template (required for every task file): `docs/task_tempalte.md`
-- Task specs: `tasks/001.md` through `tasks/008.md`
-- Full checklist: `docs/todo.md`
+- Authoritative V2 spec: `docs/poetry_association_tool_v2_design_document.md`
+- Required task structure: `docs/task_tempalte.md`
+- V2 task specs: `tasks/009.md` through `tasks/013.md`
+- Checklist: `docs/todo.md`

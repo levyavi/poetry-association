@@ -1,0 +1,17 @@
+{% extends "admin/_base.html" %}
+{% block title %}Import CSV{% endblock %}
+{% block content %}
+<div class="admin-form-section">
+  <h1 class="admin-section-title">Import poems from CSV</h1>
+  <p class="import-help">Upload a CSV file with exactly two columns: <code>title</code> and <code>text</code>.</p>
+  <form method="post" action="{{ url_for('admin.import_preview') }}" enctype="multipart/form-data" class="import-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="form-label" for="csv_file">CSV file</label>
+    <input type="file" name="csv_file" id="csv_file" accept=".csv" class="file-input">
+    <div class="form-actions">
+      <button type="submit" class="search-button">Preview</button>
+      <a href="{{ url_for('admin.dashboard') }}" class="btn-cancel">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

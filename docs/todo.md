@@ -176,30 +176,32 @@ This checklist is the full, sequential set of items needed to build V1, derived 
 
 ## Task 007 — CSV Import Admin UI with Pre-Confirm and Cancellation
 
+- [x] **007** — complete
+
 ### Modules
-- [ ] `import_state.py` with `ImportSession`, `create`, `get`, `cancel`, `discard`, `cleanup_expired`.
-- [ ] Update `csv_import.execute` to honor `cancel_flag` and `on_progress` (no-op by default).
-- [ ] Update `routes/admin.py` with `import_upload`, `import_preview`, `import_confirm`, `import_cancel`.
-- [ ] Update `config.py` with `import_temp_dir`.
-- [ ] `admin/_base.html` nav link to Import CSV.
-- [ ] CSS for upload / preview / result screens.
+- [x] `import_state.py` with `ImportSession`, `create`, `get`, `cancel`, `discard`, `cleanup_expired`.
+- [x] Update `csv_import.execute` to honor `cancel_flag` and `on_progress` (no-op by default).
+- [x] Update `routes/admin.py` with `import_upload`, `import_preview`, `import_confirm`, `import_cancel`.
+- [x] Update `config.py` with `import_temp_dir`.
+- [x] `admin/_base.html` nav link to Import CSV.
+- [x] CSS for upload / preview / result screens.
 
 ### Templates
-- [ ] `admin/import_upload.html`.
-- [ ] `admin/import_preview.html`.
-- [ ] `admin/import_result.html`.
+- [x] `admin/import_upload.html`.
+- [x] `admin/import_preview.html`.
+- [x] `admin/import_result.html`.
 
 ### Fixtures
-- [ ] `tests/fixtures/fixture_import.csv` with duplicates.
-- [ ] `tests/fixtures/fixture_import_bad_headers.csv`.
-- [ ] `tests/fixtures/fixture_import_partial_failure.csv`.
+- [x] `tests/fixtures/fixture_import.csv` with duplicates.
+- [x] `tests/fixtures/fixture_import_bad_headers.csv`.
+- [x] `tests/fixtures/fixture_import_partial_failure.csv`.
 
 ### Tests
-- [ ] `test_admin_import_upload.py` (preview counts, bad headers rejected, auth, CSRF).
-- [ ] `test_admin_import_execute.py` (confirm writes rows, duplicates skipped, temp cleanup, search cache refresh).
-- [ ] `test_admin_import_cancellation.py` (cancel mid-import preserves prior rows).
-- [ ] Partial failure fixture preserves rows 1..K-1.
-- [ ] Observable: admin uploads CSV, sees counts, confirms, and poems appear in search.
+- [x] `test_admin_import_upload.py` (preview counts, bad headers rejected, auth, CSRF).
+- [x] `test_admin_import_execute.py` (confirm writes rows, duplicates skipped, temp cleanup, search cache refresh).
+- [x] `test_admin_import_cancellation.py` (cancel mid-import preserves prior rows).
+- [x] Partial failure fixture preserves rows 1..K-1.
+- [x] Observable: admin uploads CSV, sees counts, confirms, and poems appear in search.
 
 ---
 

@@ -1,0 +1,23 @@
+{% extends "admin/_base.html" %}
+{% block title %}Import Result{% endblock %}
+{% block content %}
+<div class="admin-form-section">
+  <h1 class="admin-section-title">Import result</h1>
+  <div class="import-result-card">
+    <p><strong>Imported:</strong> {{ result.imported }}</p>
+    <p><strong>Skipped duplicates:</strong> {{ result.skipped_duplicates }}</p>
+    {% if result.cancelled %}
+    <p class="import-status import-status-cancelled"><strong>Status:</strong> Cancelled — rows imported before cancellation have been kept.</p>
+    {% elif result.error %}
+    <p class="import-status import-status-error"><strong>Error:</strong> {{ result.error }}</p>
+    <p>Rows imported before the error have been kept.</p>
+    {% else %}
+    <p class="import-status import-status-success"><strong>Status:</strong> Complete</p>
+    {% endif %}
+  </div>
+  <div class="form-actions">
+    <a href="{{ url_for('admin.dashboard') }}" class="search-button" style="text-decoration:none;display:inline-block">Back to dashboard</a>
+    <a href="{{ url_for('admin.import_upload') }}" class="btn-cancel">Import another</a>
+  </div>
+</div>
+{% endblock %}

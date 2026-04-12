@@ -571,6 +571,50 @@ header {
   overflow-y: auto;
 }
 
+/* ── Import CSV ──────────────────────────────────────────── */
+
+.import-help {
+  color: #555;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+
+.import-help code {
+  background: #f0efea;
+  padding: 0.1rem 0.3rem;
+  border-radius: 2px;
+  font-size: 0.9em;
+}
+
+.import-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.file-input {
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.import-preview-card,
+.import-result-card {
+  border: 1px solid #d0cfc8;
+  border-radius: 4px;
+  padding: 1rem;
+  background: #fff;
+  margin-bottom: 1.5rem;
+}
+
+.import-preview-card p,
+.import-result-card p {
+  margin-bottom: 0.3rem;
+}
+
+.import-status-success { color: #1a6430; }
+.import-status-cancelled { color: #7a5900; }
+.import-status-error { color: #721c24; }
+
 /* ── Responsive ───────────────────────────────────────────── */
 
 @media (max-width: 480px) {

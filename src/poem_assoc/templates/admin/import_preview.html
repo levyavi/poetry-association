@@ -1,0 +1,22 @@
+{% extends "admin/_base.html" %}
+{% block title %}Import Preview{% endblock %}
+{% block content %}
+<div class="admin-form-section">
+  <h1 class="admin-section-title">Import preview</h1>
+  <div class="import-preview-card">
+    <p><strong>File:</strong> {{ filename }}</p>
+    <p><strong>Rows to import:</strong> {{ importable }}</p>
+    <p><strong>Duplicates to skip:</strong> {{ duplicates }}</p>
+  </div>
+  <div class="form-actions">
+    <form method="post" action="{{ url_for('admin.import_confirm') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="search-button">Confirm import</button>
+    </form>
+    <form method="post" action="{{ url_for('admin.import_cancel') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn-cancel">Cancel</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import os
+import secrets
+from uuid import uuid4
+
 from flask import (
     Blueprint,
     abort,
@@ -8,14 +12,32 @@ from flask import (
     redirect,
     render_template,
     request,
+    session,
     url_for,
 )
 
-from .. import auth, csrf, repository
+from .. import auth, csv_import, csrf, import_state, repository
+from ..csv_import import CsvFormatError
 from ..db import get_connection
 from ..repository import DuplicatePoemError, PoemNotFoundError
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+
+
+def _import_session_id() -> str:
+    """Return a stable random token stored in the Flask session for keying import state."""
+    key = "_import_sid"
+    sid = session.get(key)
+    if not sid:
+        sid = secrets.token_hex(16)
+        session[key] = sid
+    return sid
+
+
+@admin_bp.before_request
+def _housekeeping():
+    import_state.cleanup_expired()
+
 
 _VALID_SORTS = frozenset(
     {"title_asc", "title_desc", "created_asc", "created_desc", "updated_asc", "updated_desc"}
@@ -208,3 +230,112 @@ def delete_poem(poem_id: int):
 
     flash("Deleted", "success")
     return redirect(url_for("admin.dashboard"))
+
+
+# ── CSV Import ──────────────────────────────────────────────────
+
+@admin_bp.route("/import", methods=["GET"])
+@auth.login_required
+def import_upload():
+    return render_template("admin/import_upload.html")
+
+
+@admin_bp.route("/import/preview", methods=["POST"])
+@auth.login_required
+def import_preview():
+    _verify_csrf_or_abort()
+
+    uploaded = request.files.get("csv_file")
+    if uploaded is None or uploaded.filename == "":
+        flash("No file selected", "error")
+        return render_template("admin/import_upload.html"), 422
+
+    cfg = current_app.config["POEM_CONFIG"]
+    temp_dir = cfg.import_temp_dir
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_path = os.path.join(temp_dir, f"{uuid4()}.csv")
+
+    try:
+        uploaded.save(temp_path)
+    except Exception:
+        flash("Failed to save uploaded file", "error")
+        return render_template("admin/import_upload.html"), 500
+
+    conn = get_connection(cfg.db_path)
+    try:
+        plan = csv_import.plan(conn, temp_path)
+    except CsvFormatError as exc:
+        # Clean up temp file on bad CSV
+        try:
+            os.unlink(temp_path)
+        except FileNotFoundError:
+            pass
+        flash(str(exc), "error")
+        return render_template("admin/import_upload.html"), 422
+    finally:
+        conn.close()
+
+    sid = _import_session_id()
+    import_state.create(sid, plan, temp_path, uploaded.filename or "upload.csv")
+
+    return render_template(
+        "admin/import_preview.html",
+        filename=uploaded.filename,
+        importable=len(plan.importable_rows),
+        duplicates=plan.duplicate_count,
+    )
+
+
+@admin_bp.route("/import/confirm", methods=["POST"])
+@auth.login_required
+def import_confirm():
+    _verify_csrf_or_abort()
+
+    sid = _import_session_id()
+    sess = import_state.get(sid)
+    if sess is None:
+        flash("No pending import — please upload a CSV first", "error")
+        return redirect(url_for("admin.import_upload"))
+
+    cfg = current_app.config["POEM_CONFIG"]
+    embedding_service = current_app.extensions["embedding"]
+    conn = get_connection(cfg.db_path)
+    try:
+        result = csv_import.execute(
+            conn,
+            sess.plan,
+            embedding_service,
+            cancel_flag=sess.is_cancelled,
+        )
+    finally:
+        conn.close()
+
+    if result.imported > 0:
+        search_service = current_app.extensions["search"]
+        search_service.refresh()
+
+    import_state.discard(sid)
+
+    return render_template("admin/import_result.html", result=result)
+
+
+@admin_bp.route("/import/cancel", methods=["POST"])
+@auth.login_required
+def import_cancel():
+    _verify_csrf_or_abort()
+
+    sid = _import_session_id()
+    sess = import_state.get(sid)
+
+    if sess is None:
+        # Nothing in-flight — just redirect
+        flash("No active import to cancel", "info")
+        return redirect(url_for("admin.import_upload"))
+
+    sess.cancel()
+    # If the import is still in-flight (synchronous, so this cancel is from
+    # a separate request/tab), the execute loop will notice on its next iteration.
+    # If the import hasn't started yet (preview stage), discard state and go back.
+    import_state.discard(sid)
+    flash("Import cancelled", "info")
+    return redirect(url_for("admin.import_upload"))

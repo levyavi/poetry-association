@@ -34,7 +34,7 @@ def app(temp_db_path, embedding_service):
     cfg = Config(
         db_path=temp_db_path,
         secret_key="test-secret",
-        admin_password="",
+        admin_password="test-pass",
         model_name="all-MiniLM-L6-v2",
         model_path=None,
     )

@@ -54,19 +54,26 @@ def get_poem(conn: sqlite3.Connection, poem_id: int) -> sqlite3.Row | None:
     return conn.execute("SELECT * FROM poems WHERE id = ?", (poem_id,)).fetchone()
 
 
+_SORT_MAP: dict[str, str] = {
+    "title_asc":    "title COLLATE NOCASE ASC, id ASC",
+    "title_desc":   "title COLLATE NOCASE DESC, id DESC",
+    "created_asc":  "created_at ASC, id ASC",
+    "created_desc": "created_at DESC, id DESC",
+    "updated_asc":  "updated_at ASC, id ASC",
+    "updated_desc": "updated_at DESC, id DESC",
+}
+
+
 def list_poems(
     conn: sqlite3.Connection, order_by: str = "title_asc"
 ) -> list[sqlite3.Row]:
-    """Return all poems ordered by the provided sort key."""
-    allowed = {
-        "title_asc": "title ASC, id ASC",
-        "title_desc": "title DESC, id DESC",
-        "created_asc": "created_at ASC, id ASC",
-        "created_desc": "created_at DESC, id DESC",
-        "updated_asc": "updated_at ASC, id ASC",
-        "updated_desc": "updated_at DESC, id DESC",
-    }
-    sql_order = allowed.get(order_by, allowed["title_asc"])
+    """Return all poems ordered by the provided sort key.
+
+    Raises ValueError for an unrecognised *order_by* value.
+    """
+    if order_by not in _SORT_MAP:
+        raise ValueError(f"Unknown sort key: {order_by!r}")
+    sql_order = _SORT_MAP[order_by]
     return conn.execute(f"SELECT * FROM poems ORDER BY {sql_order}").fetchall()
 
 

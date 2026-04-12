@@ -1,0 +1,23 @@
+{% extends "admin/_base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block nav %}{% endblock %}
+
+{% block content %}
+<section class="admin-login">
+  <h2 class="admin-section-title">Admin Login</h2>
+  <form method="post" action="{{ url_for('admin.login_view') }}" class="login-form">
+    <label for="password" class="login-label">Password</label>
+    <input
+      type="password"
+      id="password"
+      name="password"
+      class="login-input"
+      autofocus
+      required
+    >
+    <button type="submit" class="search-button">Log in</button>
+  </form>
+</section>
+{% endblock %}

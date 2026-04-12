@@ -77,7 +77,7 @@ def test_search_page_contains_form(client):
 # ---------------------------------------------------------------------------
 
 def test_db_file_created(temp_db_path):
-    cfg = Config(db_path=temp_db_path, secret_key="s", admin_password="",
+    cfg = Config(db_path=temp_db_path, secret_key="s", admin_password="test-pass",
                  model_name="all-MiniLM-L6-v2", model_path=None)
     create_app(config_override=cfg)
     assert os.path.exists(temp_db_path)
@@ -102,7 +102,7 @@ def test_poems_table_columns(temp_db_path):
 
 def test_startup_under_two_seconds(tmp_path):
     db = str(tmp_path / "perf.db")
-    cfg = Config(db_path=db, secret_key="s", admin_password="",
+    cfg = Config(db_path=db, secret_key="s", admin_password="test-pass",
                  model_name="all-MiniLM-L6-v2", model_path=None)
     start = time.monotonic()
     create_app(config_override=cfg)

@@ -5,6 +5,7 @@ from flask import Flask
 from .config import Config
 from .db import init_db
 from .embedding import EmbeddingService
+from .routes.admin import admin_bp
 from .routes.public import public_bp
 from .search import SearchService
 
@@ -17,6 +18,9 @@ def create_app(
     app = Flask(__name__, template_folder="templates", static_folder="static")
 
     cfg = config_override if config_override is not None else Config.from_environment()
+
+    if not cfg.admin_password:
+        raise RuntimeError("POEM_ADMIN_PASSWORD must be set")
 
     app.config["SECRET_KEY"] = cfg.secret_key
     app.config["POEM_CONFIG"] = cfg
@@ -35,5 +39,6 @@ def create_app(
     app.extensions["search"] = search_service
 
     app.register_blueprint(public_bp)
+    app.register_blueprint(admin_bp)
 
     return app

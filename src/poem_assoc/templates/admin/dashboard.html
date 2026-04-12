@@ -1,0 +1,53 @@
+{% extends "admin/_base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="admin-dashboard">
+  <div class="dashboard-header">
+    <h2 class="admin-section-title">Poems <span class="poem-count">({{ poems | length }})</span></h2>
+
+    <form method="get" action="{{ url_for('admin.dashboard') }}" class="sort-form">
+      <label for="sort" class="sort-label">Sort by:</label>
+      <select id="sort" name="sort" class="sort-select" onchange="this.form.submit()">
+        <option value="title_asc"   {% if current_sort == "title_asc"    %}selected{% endif %}>Title A–Z</option>
+        <option value="title_desc"  {% if current_sort == "title_desc"   %}selected{% endif %}>Title Z–A</option>
+        <option value="created_desc"{% if current_sort == "created_desc" %}selected{% endif %}>Created newest</option>
+        <option value="created_asc" {% if current_sort == "created_asc"  %}selected{% endif %}>Created oldest</option>
+        <option value="updated_desc"{% if current_sort == "updated_desc" %}selected{% endif %}>Updated newest</option>
+        <option value="updated_asc" {% if current_sort == "updated_asc"  %}selected{% endif %}>Updated oldest</option>
+      </select>
+      <noscript><button type="submit" class="search-button">Apply</button></noscript>
+    </form>
+  </div>
+
+  {% if poems %}
+  <table class="poems-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Title</th>
+        <th>Created</th>
+        <th>Updated</th>
+        <th>Edit</th>
+        <th>Delete</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for poem in poems %}
+      <tr>
+        <td>{{ poem["id"] }}</td>
+        <td>{{ poem["title"] if poem["title"] else "Untitled" }}</td>
+        <td>{{ poem["created_at"] }}</td>
+        <td>{{ poem["updated_at"] }}</td>
+        <td><span class="action-placeholder">—</span></td>
+        <td><span class="action-placeholder">—</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="no-results">No poems found.</p>
+  {% endif %}
+</section>
+{% endblock %}

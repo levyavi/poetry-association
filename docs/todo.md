@@ -124,23 +124,25 @@ This checklist is the full, sequential set of items needed to build V1, derived 
 
 ## Task 005 — Admin Authentication and Sorted Poem List
 
+- [x] **005** — complete
+
 ### Modules
-- [ ] `auth.py` with `is_authenticated`, `login`, `logout`, `verify_password`, `login_required`.
-- [ ] `routes/admin.py` with login / logout / dashboard views.
-- [ ] Update `app.py` to register admin blueprint and validate `POEM_ADMIN_PASSWORD` is non-empty.
-- [ ] Update `repository.list_poems` to accept `order_by` with a whitelist.
+- [x] `auth.py` with `is_authenticated`, `login`, `logout`, `verify_password`, `login_required`.
+- [x] `routes/admin.py` with login / logout / dashboard views.
+- [x] Update `app.py` to register admin blueprint and validate `POEM_ADMIN_PASSWORD` is non-empty.
+- [x] Update `repository.list_poems` to accept `order_by` with a whitelist.
 
 ### Templates
-- [ ] `admin/_base.html` shared layout.
-- [ ] `admin/login.html`.
-- [ ] `admin/dashboard.html` with sort dropdown and placeholder action columns.
-- [ ] Admin CSS additions.
+- [x] `admin/_base.html` shared layout.
+- [x] `admin/login.html`.
+- [x] `admin/dashboard.html` with sort dropdown and placeholder action columns.
+- [x] Admin CSS additions.
 
 ### Tests
-- [ ] `test_auth.py` (verify_password, empty-env rejection, session helpers).
-- [ ] `test_admin_dashboard.py` (redirect when unauthenticated, login flow, dashboard render, sort options, logout).
-- [ ] Public routes still work unauthenticated.
-- [ ] Observable: `/admin` requires password, dashboard shows sorted poem list.
+- [x] `test_auth.py` (verify_password, empty-env rejection, session helpers).
+- [x] `test_admin_dashboard.py` (redirect when unauthenticated, login flow, dashboard render, sort options, logout).
+- [x] Public routes still work unauthenticated.
+- [x] Observable: `/admin` requires password, dashboard shows sorted poem list.
 
 ---
 

@@ -5,11 +5,30 @@ param(
 $ErrorActionPreference = "Stop"
 
 $TasksDir = "tasks"
+$ScriptRoot = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $PSCommandPath }
 
-function Get-Model {
+function Get-CodexConfigFile {
     param([string]$Level)
-    if ($Level -eq "Low") { return "gpt-5.4-mini" }
-    return "gpt-5.4"
+
+    if ($Level -eq "Low") { return Join-Path $ScriptRoot "codex_low.toml" }
+    if ($Level -eq "High") { return Join-Path $ScriptRoot "codex_high.toml" }
+    return Join-Path $ScriptRoot "codex_medium.toml"
+}
+
+function Get-CodexConfigValue {
+    param(
+        [string]$ConfigPath,
+        [string]$Key
+    )
+
+    $Pattern = '^\s*' + [regex]::Escape($Key) + '\s*=\s*"([^"]+)"\s*$'
+    $Match = Get-Content $ConfigPath | Select-String -Pattern $Pattern | Select-Object -First 1
+
+    if (-not $Match) {
+        throw "Missing '$Key' in $ConfigPath"
+    }
+
+    return $Match.Matches[0].Groups[1].Value
 }
 
 $TaskFiles = Get-ChildItem -Path $TasksDir -Filter "*.md" |
@@ -33,7 +52,9 @@ foreach ($TaskFile in $TaskFiles) {
 
     $LevelLine = Get-Content $TaskFile.FullName | Select-String -Pattern "Level:" | Select-Object -First 1
     $Level = $LevelLine -replace '.*Level:\s*', '' -replace '\s', ''
-    $Model = Get-Model $Level
+    $ConfigPath = Get-CodexConfigFile $Level
+    $Model = Get-CodexConfigValue -ConfigPath $ConfigPath -Key "model"
+    $ReasoningEffort = Get-CodexConfigValue -ConfigPath $ConfigPath -Key "model_reasoning_effort"
 
     $Prompt = @"
 You are working in the project repo root.
@@ -51,11 +72,12 @@ When done:
     Write-Host ""
     Write-Host "=================================================="
     Write-Host "Running task: $TaskId | Level: $Level | Model: $Model"
+    Write-Host "Config:       $ConfigPath | Reasoning: $ReasoningEffort"
     Write-Host "=================================================="
 
     $done = $false
     while (-not $done) {
-        codex exec --full-auto --sandbox workspace-write -m $Model $Prompt
+        codex exec --full-auto --sandbox workspace-write -m $Model -c model_reasoning_effort=$ReasoningEffort $Prompt
 
         if ($LASTEXITCODE -eq 0) {
             Write-Host ""

@@ -8,11 +8,11 @@ import numpy as np
 
 from .embedding import EmbeddingService
 from .lexical import LexicalTextProcessor
-from .text_cleaning import clean_poem_text, compute_dedup_key
+from .text_cleaning import clean_poem_text
 
 
 class DuplicatePoemError(Exception):
-    """Raised when attempting to insert a poem whose cleaned text already exists."""
+    """Raised when attempting to insert a poem whose title+body already exists."""
 
 
 class PoemNotFoundError(Exception):
@@ -23,6 +23,24 @@ def _utcnow() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _normalize_required_title(title: str) -> str:
+    """Return a trimmed title or raise when it is blank."""
+    normalized = (title or "").strip()
+    if not normalized:
+        raise ValueError("Poem title is required")
+    return normalized
+
+
+def find_by_title_and_cleaned_text(
+    conn: sqlite3.Connection, title: str, cleaned_text: str
+) -> sqlite3.Row | None:
+    """Look up a poem by normalized title and cleaned body text."""
+    return conn.execute(
+        "SELECT * FROM poems WHERE title = ? AND cleaned_text = ?",
+        (title, cleaned_text),
+    ).fetchone()
+
+
 def create_poem(
     conn: sqlite3.Connection,
     title: str,
@@ -31,11 +49,11 @@ def create_poem(
     lexical_processor: LexicalTextProcessor,
 ) -> int:
     """Insert a poem with cleaned text, lexical text, and embedding."""
+    title = _normalize_required_title(title)
     cleaned = clean_poem_text(text)
-    dedup = compute_dedup_key(cleaned)
 
-    if find_by_cleaned_text(conn, dedup) is not None:
-        raise DuplicatePoemError("Duplicate poem detected (dedup key match)")
+    if find_by_title_and_cleaned_text(conn, title, cleaned) is not None:
+        raise DuplicatePoemError("Duplicate poem detected (matching title and text)")
 
     search_text = lexical_processor.build_search_text(title, text)
     vector = embedding_service.encode(title, cleaned)
@@ -47,7 +65,7 @@ def create_poem(
             "INSERT INTO poems "
             "(title, text, cleaned_text, lemmatized_search_text, embedding, created_at, updated_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (title, text, dedup, search_text, blob, now, now),
+            (title, text, cleaned, search_text, blob, now, now),
         )
     return cursor.lastrowid
 
@@ -80,7 +98,7 @@ def list_poems(
 def find_by_cleaned_text(
     conn: sqlite3.Connection, dedup_key: str
 ) -> sqlite3.Row | None:
-    """Look up a poem by its canonical dedup key stored in cleaned_text."""
+    """Look up a poem by its normalized body text stored in cleaned_text."""
     return conn.execute(
         "SELECT * FROM poems WHERE cleaned_text = ?", (dedup_key,)
     ).fetchone()
@@ -99,12 +117,12 @@ def update_poem(
     if existing is None:
         raise PoemNotFoundError(f"No poem with id {poem_id}")
 
+    title = _normalize_required_title(title)
     cleaned = clean_poem_text(text)
-    dedup = compute_dedup_key(cleaned)
 
-    dup = find_by_cleaned_text(conn, dedup)
+    dup = find_by_title_and_cleaned_text(conn, title, cleaned)
     if dup is not None and dup["id"] != poem_id:
-        raise DuplicatePoemError("A poem with this cleaned text already exists")
+        raise DuplicatePoemError("A poem with this title and text already exists")
 
     content_changed = (existing["title"] != title) or (existing["text"] != text)
 
@@ -117,7 +135,7 @@ def update_poem(
             conn.execute(
                 "UPDATE poems SET title = ?, text = ?, cleaned_text = ?, "
                 "lemmatized_search_text = ?, embedding = ?, updated_at = ? WHERE id = ?",
-                (title, text, dedup, search_text, blob, now, poem_id),
+                (title, text, cleaned, search_text, blob, now, poem_id),
             )
     # If nothing changed, don't bump updated_at
 

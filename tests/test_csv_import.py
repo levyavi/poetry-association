@@ -17,15 +17,15 @@ class TestPlan:
         """With one poem already in DB, plan reports the right counts."""
         create_poem(
             db_conn,
-            "Existing",
+            "Alpha",
             "First poem text here.\nIt has two lines.",
             embedding_service,
             lexical_processor,
         )
         csv_path = os.path.join(os.path.dirname(__file__), "fixtures", "fixture_poems.csv")
         result = plan(db_conn, csv_path)
-        assert result.duplicate_count == 2
-        assert len(result.importable_rows) == 3
+        assert result.duplicate_count == 1
+        assert len(result.importable_rows) == 4
 
     def test_rejects_wrong_headers(self, db_conn):
         stream = io.StringIO("name,body\nfoo,bar\n")
@@ -38,11 +38,30 @@ class TestPlan:
             plan(db_conn, stream)
 
     def test_in_file_duplicate_detection(self, db_conn):
-        csv_text = "title,text\nA,same body\nB,same body\n"
+        csv_text = "title,text\nA,same body\nA,same body\n"
         stream = io.StringIO(csv_text)
         result = plan(db_conn, stream)
         assert len(result.importable_rows) == 1
         assert result.duplicate_count == 1
+
+    def test_same_body_different_title_not_duplicate(self, db_conn):
+        csv_text = "title,text\nA,same body\nB,same body\n"
+        stream = io.StringIO(csv_text)
+        result = plan(db_conn, stream)
+        assert len(result.importable_rows) == 2
+        assert result.duplicate_count == 0
+
+    def test_rejects_empty_title(self, db_conn):
+        stream = io.StringIO("title,text\n   ,Body only\n")
+        with pytest.raises(CsvFormatError, match="title is empty"):
+            plan(db_conn, stream)
+
+    def test_allows_empty_text(self, db_conn):
+        stream = io.StringIO('title,text\nTitle Only,""\n')
+        result = plan(db_conn, stream)
+        assert len(result.importable_rows) == 1
+        assert result.importable_rows[0].title == "Title Only"
+        assert result.importable_rows[0].text == ""
 
 
 class TestExecute:
@@ -136,5 +155,5 @@ class TestPerformanceSmoke:
         import_plan = plan(db_conn, csv_path)
         result = execute(db_conn, import_plan, embedding_service, lexical_processor)
         elapsed = time.monotonic() - start
-        assert result.imported == 10
+        assert result.imported == 12
         assert elapsed < 10.0

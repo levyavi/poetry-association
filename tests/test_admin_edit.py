@@ -121,12 +121,34 @@ class TestAdminEdit:
             f"/admin/poems/{poem_id_b}/edit",
             data={
                 "csrf_token": token,
-                "title": "B",
+                "title": "A",
                 "text": "Text alpha",
             },
         )
         assert resp.status_code == 422
         assert b"already exists" in resp.data
+
+    def test_edit_same_body_different_title_allowed(
+        self, app, client, embedding_service, lexical_processor
+    ):
+        _seed_poem(app, embedding_service, lexical_processor, title="A", text="Text alpha")
+        poem_id_b = _seed_poem(
+            app, embedding_service, lexical_processor, title="B", text="Text beta"
+        )
+
+        _login(client)
+        token = _get_csrf_token(client)
+        resp = client.post(
+            f"/admin/poems/{poem_id_b}/edit",
+            data={
+                "csrf_token": token,
+                "title": "B revised",
+                "text": "Text alpha",
+            },
+            follow_redirects=True,
+        )
+        assert resp.status_code == 200
+        assert b"Saved" in resp.data
 
     def test_edit_same_text_own_row_allowed(
         self, app, client, embedding_service, lexical_processor
@@ -142,6 +164,41 @@ class TestAdminEdit:
                 "csrf_token": token,
                 "title": "Mine",
                 "text": "My own text",
+            },
+            follow_redirects=True,
+        )
+        assert resp.status_code == 200
+        assert b"Saved" in resp.data
+
+    def test_edit_empty_title_blocked(
+        self, app, client, embedding_service, lexical_processor
+    ):
+        poem_id = _seed_poem(app, embedding_service, lexical_processor)
+        _login(client)
+        token = _get_csrf_token(client)
+        resp = client.post(
+            f"/admin/poems/{poem_id}/edit",
+            data={
+                "csrf_token": token,
+                "title": "   ",
+                "text": "Still has body",
+            },
+        )
+        assert resp.status_code == 422
+        assert b"Poem title is required" in resp.data
+
+    def test_edit_empty_text_allowed(
+        self, app, client, embedding_service, lexical_processor
+    ):
+        poem_id = _seed_poem(app, embedding_service, lexical_processor)
+        _login(client)
+        token = _get_csrf_token(client)
+        resp = client.post(
+            f"/admin/poems/{poem_id}/edit",
+            data={
+                "csrf_token": token,
+                "title": "Title Only",
+                "text": "   ",
             },
             follow_redirects=True,
         )

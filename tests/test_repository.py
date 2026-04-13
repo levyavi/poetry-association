@@ -36,13 +36,58 @@ class TestCreatePoem:
         with pytest.raises(DuplicatePoemError):
             create_poem(
                 db_conn,
-                "Second",
+                "First",
                 "Same poem body here",
                 embedding_service,
                 lexical_processor,
             )
         rows = list_poems(db_conn)
         assert len(rows) == 1
+
+    def test_allows_same_body_with_different_title(
+        self, db_conn, embedding_service, lexical_processor
+    ):
+        create_poem(
+            db_conn,
+            "First",
+            "Same poem body here",
+            embedding_service,
+            lexical_processor,
+        )
+        create_poem(
+            db_conn,
+            "Second",
+            "Same poem body here",
+            embedding_service,
+            lexical_processor,
+        )
+        rows = list_poems(db_conn)
+        assert len(rows) == 2
+
+    def test_rejects_empty_title(self, db_conn, embedding_service, lexical_processor):
+        with pytest.raises(ValueError, match="Poem title is required"):
+            create_poem(
+                db_conn,
+                "   ",
+                "Body text",
+                embedding_service,
+                lexical_processor,
+            )
+
+    def test_allows_empty_text(self, db_conn, embedding_service, lexical_processor):
+        poem_id = create_poem(
+            db_conn,
+            "Title Only",
+            "   ",
+            embedding_service,
+            lexical_processor,
+        )
+        row = get_poem(db_conn, poem_id)
+        assert row is not None
+        assert row["title"] == "Title Only"
+        assert row["text"] == "   "
+        assert row["cleaned_text"] == ""
+        assert row["lemmatized_search_text"] == "title only"
 
     def test_update_regenerates_lemmatized_search_text(
         self,

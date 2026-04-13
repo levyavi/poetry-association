@@ -61,3 +61,16 @@ class TestCliImport:
         assert result.returncode == 0
         assert "Imported 0 poems" in result.stdout
         assert "skipped 1 duplicate" in result.stdout
+
+    def test_same_body_different_title_imports_both(self, tmp_path):
+        csv_file = tmp_path / "poems.csv"
+        csv_file.write_text(
+            'title,text\nOne,"Shared body"\nTwo,"Shared body"\n',
+            encoding="utf-8",
+        )
+        db_path = str(tmp_path / "cli_test.db")
+        env = {**os.environ, "POEM_DB_PATH": db_path}
+        result = _run_cli("import-csv", str(csv_file), env=env)
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert "Imported 2 poems" in result.stdout
+        assert "skipped 0 duplicates" in result.stdout

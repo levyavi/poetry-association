@@ -35,15 +35,15 @@ def test_poem_route_404_for_missing(client):
     assert response.status_code == 404
 
 
-def test_poem_route_untitled_title_stored_as_empty(client, app):
-    """Test that poems with empty title are stored and retrieved correctly."""
+def test_poem_route_title_only_poem(client, app):
+    """Test that poems with empty body are stored and retrieved correctly."""
     cfg = app.config["POEM_CONFIG"]
     conn = get_connection(cfg.db_path)
     try:
         poem_id = repository.create_poem(
             conn,
+            "Title Only",
             "",
-            "Untitled poem text",
             app.extensions["embedding"],
             app.extensions["lexical"],
         )
@@ -54,8 +54,8 @@ def test_poem_route_untitled_title_stored_as_empty(client, app):
     assert response.status_code == 200
 
     data = response.get_json()
-    assert data["title"] == ""
-    assert data["text"] == "Untitled poem text"
+    assert data["title"] == "Title Only"
+    assert data["text"] == ""
 
 
 def test_poem_route_preserves_line_breaks(client, app):

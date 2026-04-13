@@ -73,7 +73,7 @@ class TestAdminAdd:
             "/admin/poems",
             data={
                 "csrf_token": token,
-                "title": "Second",
+                "title": "First",
                 "text": "Unique poem text here",
             },
         )
@@ -87,15 +87,51 @@ class TestAdminAdd:
         conn.close()
         assert count == 1
 
-    def test_add_empty_text_blocked(self, client):
+    def test_add_same_body_different_title_allowed(self, app, client, embedding_service):
+        _login(client)
+        token = _get_csrf_token(client)
+        client.post(
+            "/admin/poems",
+            data={
+                "csrf_token": token,
+                "title": "First",
+                "text": "Shared body",
+            },
+            follow_redirects=True,
+        )
+        resp = client.post(
+            "/admin/poems",
+            data={
+                "csrf_token": token,
+                "title": "Second",
+                "text": "Shared body",
+            },
+            follow_redirects=True,
+        )
+        assert resp.status_code == 200
+        assert b"Saved" in resp.data
+
+    def test_add_empty_title_blocked(self, client):
         _login(client)
         token = _get_csrf_token(client)
         resp = client.post(
             "/admin/poems",
-            data={"csrf_token": token, "title": "No Body", "text": "   "},
+            data={"csrf_token": token, "title": "   ", "text": "Body"},
         )
         assert resp.status_code == 422
-        assert b"Poem text is required" in resp.data
+        assert b"Poem title is required" in resp.data
+
+    def test_add_empty_text_allowed(self, app, client, embedding_service):
+        _login(client)
+        token = _get_csrf_token(client)
+        resp = client.post(
+            "/admin/poems",
+            data={"csrf_token": token, "title": "Title Only", "text": "   "},
+            follow_redirects=True,
+        )
+        assert resp.status_code == 200
+        assert b"Saved" in resp.data
+        assert b"Title Only" in resp.data
 
     def test_add_requires_authentication(self, client):
         resp = client.post(

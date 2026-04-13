@@ -47,9 +47,8 @@ class TestImportPreviewCounts:
         resp = _upload(client, csv_path, token)
         assert resp.status_code == 200
         html = resp.data.decode()
-        # 3 importable (Import One/Two/Three), 2 duplicates (Dup of One/Two)
-        assert "3" in html  # importable count
-        assert "2" in html  # duplicate count
+        assert "5" in html  # importable count
+        assert "0" in html  # duplicate count
         assert "fixture_import.csv" in html
 
     def test_preview_page_renders_counts(self, client):

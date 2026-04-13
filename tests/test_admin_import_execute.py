@@ -42,7 +42,7 @@ class TestConfirmWritesRows:
         )
         assert resp.status_code == 200
         html = resp.data.decode()
-        assert "3" in html  # imported count
+        assert "5" in html  # imported count
         assert "Complete" in html
 
         # Verify rows in DB
@@ -95,8 +95,24 @@ class TestDuplicateSkipping:
         _upload_and_preview(client, csv_path, token)
         resp = client.post("/admin/import/confirm", data={"csrf_token": token})
         html = resp.data.decode()
-        # Only 2 new imports (Import Two, Import Three); Import One is a DB dup
+        # Only 4 new imports; Import One is an exact DB duplicate
         assert "Imported" in html
+
+    def test_import_allows_same_body_with_different_title(
+        self, client, app, tmp_path
+    ):
+        csv_path = tmp_path / "same_body_diff_title.csv"
+        csv_path.write_text(
+            'title,text\nOne,"Shared body"\nTwo,"Shared body"\n',
+            encoding="utf-8",
+        )
+
+        _login(client)
+        token = _get_csrf(client)
+        _upload_and_preview(client, str(csv_path), token)
+        resp = client.post("/admin/import/confirm", data={"csrf_token": token})
+        html = resp.data.decode()
+        assert "2" in html
 
 
 class TestTempFileCleanup:

@@ -8,8 +8,12 @@ from typing import Callable
 
 from .embedding import EmbeddingService
 from .lexical import LexicalTextProcessor
-from .repository import DuplicatePoemError, create_poem, find_by_cleaned_text
-from .text_cleaning import clean_poem_text, compute_dedup_key
+from .repository import (
+    DuplicatePoemError,
+    create_poem,
+    find_by_title_and_cleaned_text,
+)
+from .text_cleaning import clean_poem_text
 
 # Raise the default csv field size limit to handle large poem texts.
 csv.field_size_limit(10 * 1024 * 1024)
@@ -26,7 +30,6 @@ class PlannedRow:
     title: str
     text: str
     cleaned_text: str
-    dedup_key: str
 
 
 @dataclass
@@ -69,7 +72,7 @@ def plan(conn, csv_path_or_stream) -> ImportPlan:
             )
 
         result = ImportPlan(filename=filename)
-        seen_keys: set[str] = set()
+        seen_pairs: set[tuple[str, str]] = set()
 
         for row_num, row in enumerate(reader, start=2):
             text = row.get("text", "")
@@ -78,24 +81,27 @@ def plan(conn, csv_path_or_stream) -> ImportPlan:
             if not text and not title:
                 continue  # skip blank trailing lines
 
-            if not text:
-                raise CsvFormatError(f"Row {row_num}: poem text is empty")
+            title = title.strip()
+            if not title:
+                raise CsvFormatError(f"Row {row_num}: poem title is empty")
 
             cleaned = clean_poem_text(text)
-            dedup = compute_dedup_key(cleaned)
+            dedup_pair = (title, cleaned)
 
-            if dedup in seen_keys or find_by_cleaned_text(conn, dedup) is not None:
+            if (
+                dedup_pair in seen_pairs
+                or find_by_title_and_cleaned_text(conn, title, cleaned) is not None
+            ):
                 result.duplicate_count += 1
             else:
                 result.importable_rows.append(
                     PlannedRow(
-                        title=title.strip(),
+                        title=title,
                         text=text,
                         cleaned_text=cleaned,
-                        dedup_key=dedup,
                     )
                 )
-                seen_keys.add(dedup)
+                seen_pairs.add(dedup_pair)
 
         return result
     finally:

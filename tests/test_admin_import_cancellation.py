@@ -82,7 +82,6 @@ class TestCancelMidImport:
                 title=f"Cancel Test {i}",
                 text=f"Unique cancel test poem number {i} with special content.",
                 cleaned_text=f"unique cancel test poem number {i} with special content.",
-                dedup_key=f"unique cancel test poem number {i} with special content.",
             ))
         plan = ImportPlan(importable_rows=rows, duplicate_count=0)
 

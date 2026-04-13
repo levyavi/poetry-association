@@ -131,8 +131,8 @@ def add_poem():
     title = request.form.get("title", "").strip()
     text = request.form.get("text", "")
 
-    if not text.strip():
-        flash("Poem text is required", "error")
+    if not title:
+        flash("Poem title is required", "error")
         return render_template("admin/add.html", title=title, text=text), 422
 
     cfg = current_app.config["POEM_CONFIG"]
@@ -144,7 +144,7 @@ def add_poem():
             conn, title, text, embedding_service, lexical_processor
         )
     except DuplicatePoemError:
-        flash("A poem with this cleaned text already exists", "error")
+        flash("A poem with this title and text already exists", "error")
         return render_template("admin/add.html", title=title, text=text), 422
     except Exception as exc:
         flash(f"Failed to generate search data — poem not saved: {exc}", "error")
@@ -193,8 +193,8 @@ def edit_poem(poem_id: int):
     title = request.form.get("title", "").strip()
     text = request.form.get("text", "")
 
-    if not text.strip():
-        flash("Poem text is required", "error")
+    if not title:
+        flash("Poem title is required", "error")
         return render_template(
             "admin/edit.html", poem_id=poem_id, title=title, text=text
         ), 422
@@ -215,7 +215,7 @@ def edit_poem(poem_id: int):
     except PoemNotFoundError:
         abort(404)
     except DuplicatePoemError:
-        flash("A poem with this cleaned text already exists", "error")
+        flash("A poem with this title and text already exists", "error")
         return render_template(
             "admin/edit.html", poem_id=poem_id, title=title, text=text
         ), 422

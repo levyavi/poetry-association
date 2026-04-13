@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import unicodedata
+from dataclasses import dataclass
 
 import nltk
 from nltk.stem import WordNetLemmatizer
@@ -214,6 +215,14 @@ class LexicalResourceError(RuntimeError):
     """Raised when the local NLTK resource bundle is missing or incomplete."""
 
 
+@dataclass(frozen=True)
+class TaggedQueryTerm:
+    """Normalized query term plus the POS tag used for synonym eligibility."""
+
+    term: str
+    pos_tag: str | None
+
+
 class LexicalTextProcessor:
     """Build deterministic lemmatized search text using local bundled NLTK data."""
 
@@ -267,6 +276,10 @@ class LexicalTextProcessor:
 
     def build_query_terms(self, query: str) -> list[str]:
         """Return normalized lemmatized non-stopword query terms for lexical scoring."""
+        return [tagged.term for tagged in self.build_tagged_query_terms(query)]
+
+    def build_tagged_query_terms(self, query: str) -> list[TaggedQueryTerm]:
+        """Return normalized query terms annotated with the POS tagger output."""
         if not query:
             return []
         if not self._validated:
@@ -276,20 +289,34 @@ class LexicalTextProcessor:
             tokens = [
                 token for token in self._tokenize(query) if token not in _STOPWORDS
             ]
-            if not tokens:
-                return []
-
-            lemmas = self._lemmatize_tokens(tokens)
-            terms: list[str] = []
-            seen: set[str] = set()
-            for lemma in lemmas:
-                if not lemma or lemma in seen:
-                    continue
-                seen.add(lemma)
-                terms.append(lemma)
-            return terms
         except Exception:
             return []
+
+        if not tokens:
+            return []
+
+        tagged_terms: list[TaggedQueryTerm] = []
+        seen: set[str] = set()
+        for token, pos_tag in self._tag_tokens(tokens):
+            lemma = self.normalize_term(token, pos_tag=pos_tag)
+            if not lemma or lemma in seen:
+                continue
+            seen.add(lemma)
+            tagged_terms.append(TaggedQueryTerm(term=lemma, pos_tag=pos_tag))
+        return tagged_terms
+
+    def normalize_term(self, value: str, pos_tag: str | None = None) -> str | None:
+        """Normalize one candidate term into the shared lemmatized lexical space."""
+        tokens = self._tokenize(value)
+        if len(tokens) != 1:
+            return None
+
+        token = tokens[0]
+        if token in _STOPWORDS:
+            return None
+
+        lemma = self._lemmatize(token, pos_tag)
+        return lemma or None
 
     def _register_data_path(self) -> None:
         normalized_target = os.path.normcase(self._nltk_data_path)
@@ -321,16 +348,28 @@ class LexicalTextProcessor:
         if not tokens:
             raise ValueError("Input does not contain any searchable lexical tokens")
 
-        tagged_tokens = nltk.pos_tag(tokens, lang="eng")
+        tagged_tokens = self._tag_tokens(tokens)
         return [self._lemmatize(token, pos_tag) for token, pos_tag in tagged_tokens]
 
-    def _lemmatize(self, token: str, pos_tag: str) -> str:
+    def _tag_tokens(self, tokens: list[str]) -> list[tuple[str, str | None]]:
+        try:
+            return list(nltk.pos_tag(tokens, lang="eng"))
+        except Exception:
+            return [(token, None) for token in tokens]
+
+    def _lemmatize(self, token: str, pos_tag: str | None) -> str:
         wn_pos = self._to_wordnet_pos(pos_tag)
         if wn_pos is None:
             return self._lemmatizer.lemmatize(token)
         return self._lemmatizer.lemmatize(token, wn_pos)
 
-    def _to_wordnet_pos(self, pos_tag: str) -> str | None:
+    def _to_wordnet_pos(self, pos_tag: str | None) -> str | None:
+        if pos_tag is None:
+            return None
+        if pos_tag in {"a", "n", "r", "v"}:
+            return pos_tag
+        if pos_tag == "s":
+            return "a"
         if pos_tag.startswith("J"):
             return "a"
         if pos_tag.startswith("N"):

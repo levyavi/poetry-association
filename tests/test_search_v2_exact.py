@@ -30,6 +30,10 @@ def _exact_fixture_path() -> Path:
     return Path(__file__).parent / "fixtures" / "fixture_v2_exact.csv"
 
 
+def _synonym_fixture_path() -> Path:
+    return Path(__file__).parent / "fixtures" / "fixture_v2_synonyms.csv"
+
+
 def test_exact_match_scores_one_point_zero(temp_db_path, lexical_processor):
     init_db(temp_db_path)
     conn = get_connection(temp_db_path)
@@ -273,6 +277,221 @@ def test_exact_fixture_corpus_loads_via_real_csv_path(
     init_db(temp_db_path)
     conn = get_connection(temp_db_path)
     csv_path = _exact_fixture_path()
+
+    import_plan = csv_import.plan(conn, csv_path)
+    result = csv_import.execute(
+        conn,
+        import_plan,
+        embedding_service,
+        lexical_processor,
+    )
+
+    count = conn.execute("SELECT COUNT(*) FROM poems").fetchone()[0]
+    lexical_rows = conn.execute(
+        "SELECT lemmatized_search_text FROM poems ORDER BY id"
+    ).fetchall()
+    conn.close()
+
+    assert result.imported == 3
+    assert result.error is None
+    assert count == 3
+    assert all(row["lemmatized_search_text"] for row in lexical_rows)
+
+
+def test_synonym_only_poem_receives_lexical_boost_when_semantic_floor_passes(
+    temp_db_path,
+    lexical_processor,
+    synonym_expander,
+):
+    init_db(temp_db_path)
+    conn = get_connection(temp_db_path)
+    insert_poem_raw(
+        conn,
+        "Synonym Winner",
+        "Automobile circles the room",
+        make_embedding_blob(2, index=0),
+        lemmatized_search_text="automobile circle the room",
+    )
+    insert_poem_raw(
+        conn,
+        "Semantic Only",
+        "River circles the room",
+        make_embedding_blob(2, index=1),
+        lemmatized_search_text="river circle the room",
+    )
+    conn.close()
+
+    svc = SearchService(
+        temp_db_path,
+        StubEmbeddingService({"car": [0.55, 0.60]}),
+        lexical_processor,
+        synonym_expander=synonym_expander,
+    )
+
+    results = svc.search("car")
+    assert [result.title for result in results] == [
+        "Synonym Winner",
+        "Semantic Only",
+    ]
+    assert results[0].lexical_score == pytest.approx(0.7)
+    assert results[0].final_score == pytest.approx(0.58)
+    assert results[1].lexical_score == pytest.approx(0.0)
+
+
+def test_exact_match_still_beats_synonym_match_for_same_query_word(
+    temp_db_path,
+    lexical_processor,
+    synonym_expander,
+):
+    init_db(temp_db_path)
+    conn = get_connection(temp_db_path)
+    insert_poem_raw(
+        conn,
+        "Exact Car",
+        "Car circles the room",
+        make_embedding_blob(2, index=0),
+        lemmatized_search_text="car circle the room",
+    )
+    insert_poem_raw(
+        conn,
+        "Synonym Automobile",
+        "Automobile circles the room",
+        make_embedding_blob(2, index=1),
+        lemmatized_search_text="automobile circle the room",
+    )
+    conn.close()
+
+    svc = SearchService(
+        temp_db_path,
+        StubEmbeddingService({"car": [0.50, 0.50]}),
+        lexical_processor,
+        synonym_expander=synonym_expander,
+    )
+
+    results = svc.search("car")
+    assert [result.title for result in results] == [
+        "Exact Car",
+        "Synonym Automobile",
+    ]
+    assert results[0].lexical_score == pytest.approx(1.0)
+    assert results[1].lexical_score == pytest.approx(0.7)
+
+
+def test_disable_synonym_flag_reverts_to_exact_only_behavior(
+    temp_db_path,
+    lexical_processor,
+    synonym_expander,
+):
+    init_db(temp_db_path)
+    conn = get_connection(temp_db_path)
+    insert_poem_raw(
+        conn,
+        "Synonym Winner",
+        "Automobile circles the room",
+        make_embedding_blob(2, index=0),
+        lemmatized_search_text="automobile circle the room",
+    )
+    insert_poem_raw(
+        conn,
+        "Semantic Only",
+        "River circles the room",
+        make_embedding_blob(2, index=1),
+        lemmatized_search_text="river circle the room",
+    )
+    conn.close()
+
+    svc = SearchService(
+        temp_db_path,
+        StubEmbeddingService({"car": [0.55, 0.60]}),
+        lexical_processor,
+        synonym_expander=synonym_expander,
+        enable_synonym_expansion=False,
+    )
+
+    results = svc.search("car")
+    assert [result.title for result in results] == [
+        "Semantic Only",
+        "Synonym Winner",
+    ]
+    assert results[0].lexical_score == pytest.approx(0.0)
+    assert results[1].lexical_score == pytest.approx(0.0)
+
+
+def test_multiword_query_can_mix_exact_and_synonym_matches(
+    temp_db_path,
+    lexical_processor,
+    synonym_expander,
+):
+    init_db(temp_db_path)
+    conn = get_connection(temp_db_path)
+    insert_poem_raw(
+        conn,
+        "Exact And Synonym",
+        "Quiet automobile keeps the room",
+        make_embedding_blob(2, index=0),
+        lemmatized_search_text="quiet automobile keep the room",
+    )
+    insert_poem_raw(
+        conn,
+        "Exact Only",
+        "Quiet lantern keeps the room",
+        make_embedding_blob(2, index=1),
+        lemmatized_search_text="quiet lantern keep the room",
+    )
+    conn.close()
+
+    svc = SearchService(
+        temp_db_path,
+        StubEmbeddingService({"quiet car": [0.55, 0.55]}),
+        lexical_processor,
+        synonym_expander=synonym_expander,
+    )
+
+    results = svc.search("quiet car")
+    assert [result.title for result in results] == [
+        "Exact And Synonym",
+        "Exact Only",
+    ]
+    assert results[0].lexical_score == pytest.approx(0.85)
+    assert results[1].lexical_score == pytest.approx(0.5)
+
+
+def test_synonym_search_uses_existing_lemmatized_search_text_without_schema_changes(
+    temp_db_path,
+    lexical_processor,
+    synonym_expander,
+):
+    init_db(temp_db_path)
+    conn = get_connection(temp_db_path)
+    insert_poem_raw(
+        conn,
+        "Stored Lemmas",
+        "This raw text does not contain the trigger word.",
+        make_embedding_blob(1, index=0),
+        lemmatized_search_text="automobile ash",
+    )
+    conn.close()
+
+    svc = SearchService(
+        temp_db_path,
+        StubEmbeddingService({"car": [0.55]}),
+        lexical_processor,
+        synonym_expander=synonym_expander,
+    )
+
+    result = svc.search("car")[0]
+    assert result.title == "Stored Lemmas"
+    assert result.lexical_score == pytest.approx(0.7)
+
+
+def test_synonym_fixture_corpus_loads_from_real_csv_file(
+    temp_db_path,
+    embedding_service,
+    lexical_processor,
+):
+    init_db(temp_db_path)
+    conn = get_connection(temp_db_path)
+    csv_path = _synonym_fixture_path()
 
     import_plan = csv_import.plan(conn, csv_path)
     result = csv_import.execute(

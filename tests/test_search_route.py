@@ -43,6 +43,14 @@ def test_search_route_shows_query_context_line(client):
     assert "autumn" in html
 
 
+def test_public_search_page_shows_no_new_synonym_controls(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+    html = resp.data.decode().lower()
+    assert "related words" not in html
+    assert "include synonyms" not in html
+
+
 def test_search_route_empty_db_shows_no_poems_available(client):
     resp = client.post("/search", data={"q": "grief"})
     assert resp.status_code == 200

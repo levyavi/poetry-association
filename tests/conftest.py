@@ -5,6 +5,7 @@ from poem_assoc.config import Config
 from poem_assoc.db import get_connection, init_db
 from poem_assoc.embedding import EmbeddingService
 from poem_assoc.lexical import LexicalTextProcessor
+from poem_assoc.synonyms import SynonymExpander
 
 
 @pytest.fixture(scope="session")
@@ -41,6 +42,12 @@ def lexical_processor():
     processor = LexicalTextProcessor(cfg.nltk_data_path)
     processor.validate_resources()
     return processor
+
+
+@pytest.fixture()
+def synonym_expander(lexical_processor):
+    """Return a real synonym expander backed by bundled offline WordNet data."""
+    return SynonymExpander(lexical_processor)
 
 
 @pytest.fixture()

@@ -6,6 +6,13 @@ from dataclasses import dataclass
 from importlib import resources
 
 
+def _read_bool_from_environment(name: str, default: bool) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() not in {"", "0", "false", "no", "off"}
+
+
 @dataclass
 class Config:
     db_path: str
@@ -15,6 +22,7 @@ class Config:
     model_path: str | None
     nltk_data_path: str = ""
     import_temp_dir: str = ""
+    enable_synonym_expansion: bool = True
 
     def __post_init__(self) -> None:
         if not self.import_temp_dir:
@@ -37,4 +45,7 @@ class Config:
             model_path=os.environ.get("POEM_MODEL_PATH") or None,
             nltk_data_path=os.environ.get("POEM_NLTK_DATA_PATH", ""),
             import_temp_dir=os.environ.get("POEM_IMPORT_TEMP_DIR", ""),
+            enable_synonym_expansion=_read_bool_from_environment(
+                "ENABLE_SYNONYM_EXPANSION", True
+            ),
         )

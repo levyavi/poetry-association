@@ -12,6 +12,7 @@ from .routes.admin import admin_bp
 from .routes.public import public_bp
 from .search import SearchService
 from .startup_upgrade import StartupUpgradeCoordinator
+from .synonyms import SynonymExpander
 
 
 def create_app(
@@ -32,6 +33,8 @@ def create_app(
     lexical_processor = LexicalTextProcessor(cfg.nltk_data_path)
     lexical_processor.validate_resources()
     app.extensions["lexical"] = lexical_processor
+    synonym_expander = SynonymExpander(lexical_processor)
+    app.extensions["synonyms"] = synonym_expander
 
     init_db(cfg.db_path)
 
@@ -43,7 +46,13 @@ def create_app(
 
     app.extensions["embedding"] = embedding_service
 
-    search_service = SearchService(cfg.db_path, embedding_service, lexical_processor)
+    search_service = SearchService(
+        cfg.db_path,
+        embedding_service,
+        lexical_processor,
+        synonym_expander=synonym_expander,
+        enable_synonym_expansion=cfg.enable_synonym_expansion,
+    )
     app.extensions["search"] = search_service
 
     rebuild_lock = RebuildLock()

@@ -13,17 +13,21 @@ def test_config_reads_defaults(monkeypatch):
     monkeypatch.delenv("POEM_DB_PATH", raising=False)
     monkeypatch.delenv("POEM_SECRET_KEY", raising=False)
     monkeypatch.delenv("POEM_ADMIN_PASSWORD", raising=False)
+    monkeypatch.delenv("ENABLE_SYNONYM_EXPANSION", raising=False)
     cfg = Config.from_environment()
     assert cfg.db_path == "./poem_assoc.db"
     assert cfg.secret_key
     assert cfg.admin_password == ""
+    assert cfg.enable_synonym_expansion is True
 
 
 def test_config_reads_environment(monkeypatch, tmp_path):
     custom_path = str(tmp_path / "custom.db")
     monkeypatch.setenv("POEM_DB_PATH", custom_path)
+    monkeypatch.setenv("ENABLE_SYNONYM_EXPANSION", "false")
     cfg = Config.from_environment()
     assert cfg.db_path == custom_path
+    assert cfg.enable_synonym_expansion is False
 
 
 def test_init_db_creates_schema(temp_db_path):

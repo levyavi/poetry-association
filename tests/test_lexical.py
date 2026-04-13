@@ -27,6 +27,21 @@ def test_build_query_terms_removes_stopwords_and_lemmatizes(lexical_processor):
     assert terms == ["run", "leaf", "cat"]
 
 
+def test_build_tagged_query_terms_falls_back_to_exact_terms_when_pos_tagging_fails(
+    lexical_processor,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "poem_assoc.lexical.nltk.pos_tag",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+
+    tagged_terms = lexical_processor.build_tagged_query_terms("running leaves and cats")
+
+    assert [term.term for term in tagged_terms] == ["running", "leaf", "cat"]
+    assert all(term.pos_tag is None for term in tagged_terms)
+
+
 def test_validate_resources_fails_when_required_assets_missing(tmp_path):
     processor = LexicalTextProcessor(str(tmp_path))
     with pytest.raises(LexicalResourceError, match="Missing required local NLTK resources"):

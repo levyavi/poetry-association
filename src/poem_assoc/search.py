@@ -9,7 +9,8 @@ from . import constants
 from . import repository
 from .db import get_connection
 from .embedding import EmbeddingService
-from .lexical import LexicalTextProcessor
+from .lexical import LexicalTextProcessor, TaggedQueryTerm
+from .synonyms import SynonymExpander
 from .text_cleaning import clean_query
 
 
@@ -50,10 +51,15 @@ class SearchService:
         db_path: str,
         embedding_service: EmbeddingService,
         lexical_processor: LexicalTextProcessor,
+        synonym_expander: SynonymExpander | None = None,
+        *,
+        enable_synonym_expansion: bool = True,
     ) -> None:
         self._db_path = db_path
         self._embedding_service = embedding_service
         self._lexical_processor = lexical_processor
+        self._synonym_expander = synonym_expander
+        self._enable_synonym_expansion = enable_synonym_expansion
         self._lock = threading.Lock()
         self._cached = False
         self._ids: list[int] = []
@@ -119,7 +125,8 @@ class SearchService:
 
             query_vector = self._embedding_service.encode_query(cleaned)
             scores = self._matrix @ query_vector
-            query_terms = self._lexical_processor.build_query_terms(query)
+            tagged_query_terms = self._lexical_processor.build_tagged_query_terms(query)
+            synonym_map = self._build_synonym_map(tagged_query_terms)
 
             ranked: list[
                 tuple[float, str, int, str, float, float]
@@ -131,7 +138,11 @@ class SearchService:
                 self._cleaned_texts,
                 self._lexical_terms,
             ):
-                lexical_score = self._lexical_score(query_terms, poem_terms)
+                lexical_score = self._lexical_score(
+                    tagged_query_terms,
+                    poem_terms,
+                    synonym_map,
+                )
                 effective_lexical = (
                     0.0
                     if semantic_score < constants.SEMANTIC_FLOOR
@@ -181,14 +192,36 @@ class SearchService:
             return results
 
     def _lexical_score(
-        self, query_terms: list[str], poem_terms: frozenset[str]
+        self,
+        tagged_query_terms: list[TaggedQueryTerm],
+        poem_terms: frozenset[str],
+        synonym_map: dict[str, frozenset[str]],
     ) -> float:
-        if not query_terms:
+        if not tagged_query_terms:
             return 0.0
 
-        matches = sum(
-            1
-            for term in query_terms
-            if term in poem_terms
-        )
-        return (matches * constants.EXACT_LEXICAL_MATCH_VALUE) / len(query_terms)
+        total = 0.0
+        for tagged_term in tagged_query_terms:
+            if tagged_term.term in poem_terms:
+                total += constants.EXACT_LEXICAL_MATCH_VALUE
+                continue
+
+            synonyms = synonym_map.get(tagged_term.term, frozenset())
+            if synonyms and poem_terms.intersection(synonyms):
+                total += constants.SYNONYM_LEXICAL_MATCH_VALUE
+
+        return total / len(tagged_query_terms)
+
+    def _build_synonym_map(
+        self,
+        tagged_query_terms: list[TaggedQueryTerm],
+    ) -> dict[str, frozenset[str]]:
+        if not self._enable_synonym_expansion or self._synonym_expander is None:
+            return {}
+
+        expansions = self._synonym_expander.expand_terms(tagged_query_terms)
+        return {
+            term: frozenset(synonyms)
+            for term, synonyms in expansions.items()
+            if synonyms
+        }

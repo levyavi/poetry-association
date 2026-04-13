@@ -144,36 +144,36 @@ The authoritative scope is [`docs/poetry_association_tool_v2_design_document.md`
 
 ## Task 012 — WordNet Synonym Expansion with Configurable Lexical Boost
 
-- [ ] **012** complete
+- [x] **012** complete
 
 ### Config and source modules
-- [ ] Add `ENABLE_SYNONYM_EXPANSION` to config with default enabled.
-- [ ] Create `src/poem_assoc/synonyms.py`.
-- [ ] Extend `src/poem_assoc/lexical.py` with POS-tagged query terms.
-- [ ] Update `src/poem_assoc/search.py` to apply synonym fallback scoring.
-- [ ] Update `src/poem_assoc/app.py` to instantiate the synonym expander.
+- [x] Add `ENABLE_SYNONYM_EXPANSION` to config with default enabled.
+- [x] Create `src/poem_assoc/synonyms.py`.
+- [x] Extend `src/poem_assoc/lexical.py` with POS-tagged query terms.
+- [x] Update `src/poem_assoc/search.py` to apply synonym fallback scoring.
+- [x] Update `src/poem_assoc/app.py` to instantiate the synonym expander.
 
 ### Synonym rules
-- [ ] Expand only nouns and adjectives.
-- [ ] Use only the top 1 synset.
-- [ ] Discard multi-word synonyms.
-- [ ] Exclude the original query word from its synonym list.
-- [ ] Exclude stopwords and invalid terms.
-- [ ] Normalize and deduplicate after normalization.
-- [ ] Cap surviving synonyms at 5 per eligible query word.
-- [ ] Preserve exact-match precedence over synonym matches.
+- [x] Expand only nouns and adjectives.
+- [x] Use only the top 1 synset.
+- [x] Discard multi-word synonyms.
+- [x] Exclude the original query word from its synonym list.
+- [x] Exclude stopwords and invalid terms.
+- [x] Normalize and deduplicate after normalization.
+- [x] Cap surviving synonyms at 5 per eligible query word.
+- [x] Preserve exact-match precedence over synonym matches.
 
 ### Tests
-- [ ] Create `tests/test_synonyms.py`.
-- [ ] Create `tests/fixtures/fixture_v2_synonyms.csv`.
-- [ ] Update search tests to cover synonym-only retrieval, config-flag rollback, and mixed exact/synonym multi-word queries.
-- [ ] Verify verbs and adverbs are not synonym-expanded.
-- [ ] Verify no-usable-synonyms fallback behavior.
+- [x] Create `tests/test_synonyms.py`.
+- [x] Create `tests/fixtures/fixture_v2_synonyms.csv`.
+- [x] Update search tests to cover synonym-only retrieval, config-flag rollback, and mixed exact/synonym multi-word queries.
+- [x] Verify verbs and adverbs are not synonym-expanded.
+- [x] Verify no-usable-synonyms fallback behavior.
 
 ### Observable verification
-- [ ] Synonym-only poems can rank better when semantic similarity passes the floor.
-- [ ] Setting `ENABLE_SYNONYM_EXPANSION=false` removes synonym boosts without removing exact lexical matching.
-- [ ] Public UI still exposes no synonym-specific controls.
+- [x] Synonym-only poems can rank better when semantic similarity passes the floor.
+- [x] Setting `ENABLE_SYNONYM_EXPANSION=false` removes synonym boosts without removing exact lexical matching.
+- [x] Public UI still exposes no synonym-specific controls.
 
 ---
 

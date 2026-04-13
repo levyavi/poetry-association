@@ -43,7 +43,7 @@ def create_app(
 
     app.extensions["embedding"] = embedding_service
 
-    search_service = SearchService(cfg.db_path, embedding_service)
+    search_service = SearchService(cfg.db_path, embedding_service, lexical_processor)
     app.extensions["search"] = search_service
 
     rebuild_lock = RebuildLock()

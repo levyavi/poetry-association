@@ -28,6 +28,186 @@ _PUNCT_TRANSLATION = str.maketrans(
         "\u2026": " ",
     }
 )
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "about",
+        "above",
+        "after",
+        "again",
+        "against",
+        "all",
+        "am",
+        "an",
+        "and",
+        "any",
+        "are",
+        "aren't",
+        "as",
+        "at",
+        "be",
+        "because",
+        "been",
+        "before",
+        "being",
+        "below",
+        "between",
+        "both",
+        "but",
+        "by",
+        "can",
+        "can't",
+        "cannot",
+        "could",
+        "couldn't",
+        "did",
+        "didn't",
+        "do",
+        "does",
+        "doesn't",
+        "doing",
+        "don't",
+        "down",
+        "during",
+        "each",
+        "few",
+        "for",
+        "from",
+        "further",
+        "had",
+        "hadn't",
+        "has",
+        "hasn't",
+        "have",
+        "haven't",
+        "having",
+        "he",
+        "he'd",
+        "he'll",
+        "he's",
+        "her",
+        "here",
+        "here's",
+        "hers",
+        "herself",
+        "him",
+        "himself",
+        "his",
+        "how",
+        "how's",
+        "i",
+        "i'd",
+        "i'll",
+        "i'm",
+        "i've",
+        "if",
+        "in",
+        "into",
+        "is",
+        "isn't",
+        "it",
+        "it's",
+        "its",
+        "itself",
+        "just",
+        "let's",
+        "me",
+        "more",
+        "most",
+        "mustn't",
+        "my",
+        "myself",
+        "no",
+        "nor",
+        "not",
+        "of",
+        "off",
+        "on",
+        "once",
+        "only",
+        "or",
+        "other",
+        "ought",
+        "our",
+        "ours",
+        "ourselves",
+        "out",
+        "over",
+        "own",
+        "same",
+        "shan't",
+        "she",
+        "she'd",
+        "she'll",
+        "she's",
+        "should",
+        "shouldn't",
+        "so",
+        "some",
+        "such",
+        "than",
+        "that",
+        "that's",
+        "the",
+        "their",
+        "theirs",
+        "them",
+        "themselves",
+        "then",
+        "there",
+        "there's",
+        "these",
+        "they",
+        "they'd",
+        "they'll",
+        "they're",
+        "they've",
+        "this",
+        "those",
+        "through",
+        "to",
+        "too",
+        "under",
+        "until",
+        "up",
+        "very",
+        "was",
+        "wasn't",
+        "we",
+        "we'd",
+        "we'll",
+        "we're",
+        "we've",
+        "were",
+        "weren't",
+        "what",
+        "what's",
+        "when",
+        "when's",
+        "where",
+        "where's",
+        "which",
+        "while",
+        "who",
+        "who's",
+        "whom",
+        "why",
+        "why's",
+        "with",
+        "won't",
+        "would",
+        "wouldn't",
+        "you",
+        "you'd",
+        "you'll",
+        "you're",
+        "you've",
+        "your",
+        "yours",
+        "yourself",
+        "yourselves",
+    }
+)
 
 
 class LexicalResourceError(RuntimeError):
@@ -79,15 +259,37 @@ class LexicalTextProcessor:
 
         combined = self._combine_title_and_body(title, text)
         tokens = self._tokenize(combined)
-        if not tokens:
-            raise ValueError("Poem does not contain any searchable lexical tokens")
-
-        tagged_tokens = nltk.pos_tag(tokens, lang="eng")
-        lemmas = [self._lemmatize(token, pos_tag) for token, pos_tag in tagged_tokens]
+        lemmas = self._lemmatize_tokens(tokens)
         search_text = " ".join(lemmas).strip()
         if not search_text:
             raise ValueError("Poem does not contain any searchable lexical tokens")
         return search_text
+
+    def build_query_terms(self, query: str) -> list[str]:
+        """Return normalized lemmatized non-stopword query terms for lexical scoring."""
+        if not query:
+            return []
+        if not self._validated:
+            self.validate_resources()
+
+        try:
+            tokens = [
+                token for token in self._tokenize(query) if token not in _STOPWORDS
+            ]
+            if not tokens:
+                return []
+
+            lemmas = self._lemmatize_tokens(tokens)
+            terms: list[str] = []
+            seen: set[str] = set()
+            for lemma in lemmas:
+                if not lemma or lemma in seen:
+                    continue
+                seen.add(lemma)
+                terms.append(lemma)
+            return terms
+        except Exception:
+            return []
 
     def _register_data_path(self) -> None:
         normalized_target = os.path.normcase(self._nltk_data_path)
@@ -114,6 +316,13 @@ class LexicalTextProcessor:
         normalized = unicodedata.normalize("NFKC", value)
         normalized = normalized.translate(_PUNCT_TRANSLATION).lower()
         return _WORD_RE.findall(normalized)
+
+    def _lemmatize_tokens(self, tokens: list[str]) -> list[str]:
+        if not tokens:
+            raise ValueError("Input does not contain any searchable lexical tokens")
+
+        tagged_tokens = nltk.pos_tag(tokens, lang="eng")
+        return [self._lemmatize(token, pos_tag) for token, pos_tag in tagged_tokens]
 
     def _lemmatize(self, token: str, pos_tag: str) -> str:
         wn_pos = self._to_wordnet_pos(pos_tag)

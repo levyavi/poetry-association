@@ -132,9 +132,10 @@ def delete_poem(conn: sqlite3.Connection, poem_id: int) -> bool:
 
 
 def iter_embeddings(conn: sqlite3.Connection):
-    """Yield (id, title, cleaned_poem_text, vector) for every poem that has an embedding."""
+    """Yield lexical and embedding search data for every poem that has an embedding."""
     rows = conn.execute(
-        "SELECT id, title, text, embedding FROM poems WHERE embedding IS NOT NULL"
+        "SELECT id, title, text, lemmatized_search_text, embedding "
+        "FROM poems WHERE embedding IS NOT NULL"
     ).fetchall()
     for row in rows:
         blob: bytes = row["embedding"]
@@ -142,4 +143,10 @@ def iter_embeddings(conn: sqlite3.Connection):
         vec = np.frombuffer(blob[4:], dtype=np.float32).copy()
         if len(vec) != dim:
             raise ValueError(f"Embedding blob dimension mismatch for poem {row['id']}")
-        yield (row["id"], row["title"], clean_poem_text(row["text"]), vec)
+        yield (
+            row["id"],
+            row["title"],
+            clean_poem_text(row["text"]),
+            row["lemmatized_search_text"] or "",
+            vec,
+        )

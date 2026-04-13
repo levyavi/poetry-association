@@ -65,14 +65,18 @@ def test_preview_skips_blank_lines():
     assert preview.endswith("\u2026")
 
 
-def test_untitled_rendered_when_title_blank(temp_db_path, embedding_service):
+def test_untitled_rendered_when_title_blank(
+    temp_db_path,
+    embedding_service,
+    lexical_processor,
+):
     init_db(temp_db_path)
     conn = get_connection(temp_db_path)
     blob = make_embedding_blob(embedding_service.dimension)
     insert_poem_raw(conn, "", "some poem text here about grief", blob)
     conn.close()
 
-    svc = SearchService(temp_db_path, embedding_service)
+    svc = SearchService(temp_db_path, embedding_service, lexical_processor)
     results = svc.search("poem")
     assert len(results) == 1
     assert results[0].title == "Untitled"
@@ -85,8 +89,8 @@ def search_db(temp_db_path):
 
 
 @pytest.fixture()
-def search_svc(search_db, embedding_service):
-    return SearchService(search_db, embedding_service)
+def search_svc(search_db, embedding_service, lexical_processor):
+    return SearchService(search_db, embedding_service, lexical_processor)
 
 
 def test_search_empty_query_returns_empty_list(search_svc):
@@ -113,7 +117,7 @@ def test_search_fewer_than_five_poems(search_db, embedding_service, lexical_proc
         )
     conn.close()
 
-    svc = SearchService(search_db, embedding_service)
+    svc = SearchService(search_db, embedding_service, lexical_processor)
     results = svc.search("autumn poem")
     assert len(results) == 3
 
@@ -130,12 +134,16 @@ def test_search_returns_top_5(search_db, embedding_service, lexical_processor):
         )
     conn.close()
 
-    svc = SearchService(search_db, embedding_service)
+    svc = SearchService(search_db, embedding_service, lexical_processor)
     results = svc.search("nature seasons")
     assert len(results) == 5
 
 
-def test_search_sort_ties_broken_by_title(search_db, embedding_service):
+def test_search_sort_ties_broken_by_title(
+    search_db,
+    embedding_service,
+    lexical_processor,
+):
     dim = embedding_service.dimension
     blob = make_embedding_blob(dim, index=0)
 
@@ -144,7 +152,7 @@ def test_search_sort_ties_broken_by_title(search_db, embedding_service):
         insert_poem_raw(conn, title, f"poem text about {title.lower()}", blob)
     conn.close()
 
-    svc = SearchService(search_db, embedding_service)
+    svc = SearchService(search_db, embedding_service, lexical_processor)
     results = svc.search("anything")
     assert [r.title for r in results] == ["Apple", "Mango", "Zebra"]
 
@@ -160,13 +168,13 @@ def test_search_result_has_label(search_db, embedding_service, lexical_processor
     )
     conn.close()
 
-    svc = SearchService(search_db, embedding_service)
+    svc = SearchService(search_db, embedding_service, lexical_processor)
     results = svc.search("autumn")
     assert results[0].label in ("Strong", "Moderate", "Weak")
 
 
 def test_search_refresh_picks_up_new_poem(search_db, embedding_service, lexical_processor):
-    svc = SearchService(search_db, embedding_service)
+    svc = SearchService(search_db, embedding_service, lexical_processor)
     assert svc.search("nature") == []
 
     conn = get_connection(search_db)
@@ -200,9 +208,12 @@ def test_iter_embeddings_matches_inserted_rows(
 
     rows = list(iter_embeddings(db_conn))
     assert len(rows) == 3
-    for poem_id, title, cleaned_text, vec in rows:
+    for poem_id, title, cleaned_text, lemmatized_search_text, vec in rows:
         assert isinstance(poem_id, int)
         assert isinstance(title, str)
+        assert isinstance(cleaned_text, str)
+        assert isinstance(lemmatized_search_text, str)
+        assert lemmatized_search_text
         assert vec.shape == (embedding_service.dimension,)
         assert vec.dtype == np.float32
 
@@ -211,7 +222,7 @@ def test_iter_embeddings_empty_db(db_conn):
     assert list(iter_embeddings(db_conn)) == []
 
 
-def test_search_latency_under_1s(search_db, embedding_service):
+def test_search_latency_under_1s(search_db, embedding_service, lexical_processor):
     dim = embedding_service.dimension
     conn = get_connection(search_db)
     for i in range(50):
@@ -219,7 +230,7 @@ def test_search_latency_under_1s(search_db, embedding_service):
         insert_poem_raw(conn, f"Poem {i}", f"poem about nature and season {i}", blob)
     conn.close()
 
-    svc = SearchService(search_db, embedding_service)
+    svc = SearchService(search_db, embedding_service, lexical_processor)
     svc.refresh()
 
     start = time.monotonic()

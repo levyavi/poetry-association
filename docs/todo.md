@@ -107,38 +107,38 @@ The authoritative scope is [`docs/poetry_association_tool_v2_design_document.md`
 
 ## Task 011 — Exact Lexical Matching and Combined Search Ranking
 
-- [ ] **011** complete
+- [x] **011** complete
 
 ### Scoring constants
-- [ ] Centralize semantic weight.
-- [ ] Centralize lexical weight.
-- [ ] Centralize hard semantic floor.
-- [ ] Centralize exact lexical match value.
-- [ ] Centralize synonym lexical match value for later use.
-- [ ] Centralize label thresholds and result limit.
+- [x] Centralize semantic weight.
+- [x] Centralize lexical weight.
+- [x] Centralize hard semantic floor.
+- [x] Centralize exact lexical match value.
+- [x] Centralize synonym lexical match value for later use.
+- [x] Centralize label thresholds and result limit.
 
 ### Search behavior
-- [ ] Extend `lexical.py` with query-term building.
-- [ ] Extend `search.py` to preload lexical match data in memory.
-- [ ] Compute full-corpus `semantic_score`.
-- [ ] Compute exact-only `lexical_score` across all meaningful query words.
-- [ ] Average lexical evidence across multi-word queries.
-- [ ] Zero lexical contribution below the semantic floor.
-- [ ] Compute `final_score`.
-- [ ] Sort by `final_score` descending and title ascending.
-- [ ] Base relevance labels on `final_score`.
+- [x] Extend `lexical.py` with query-term building.
+- [x] Extend `search.py` to preload lexical match data in memory.
+- [x] Compute full-corpus `semantic_score`.
+- [x] Compute exact-only `lexical_score` across all meaningful query words.
+- [x] Average lexical evidence across multi-word queries.
+- [x] Zero lexical contribution below the semantic floor.
+- [x] Compute `final_score`.
+- [x] Sort by `final_score` descending and title ascending.
+- [x] Base relevance labels on `final_score`.
 
 ### Tests
-- [ ] Create `tests/test_search_v2_exact.py`.
-- [ ] Create `tests/fixtures/fixture_v2_exact.csv`.
-- [ ] Update existing search service tests for combined-score ranking and labels.
-- [ ] Update public route tests to confirm unchanged UI behavior with new ranking.
-- [ ] Verify exact-match promotion, multi-word averaging, no stacking, and floor behavior.
+- [x] Create `tests/test_search_v2_exact.py`.
+- [x] Create `tests/fixtures/fixture_v2_exact.csv`.
+- [x] Update existing search service tests for combined-score ranking and labels.
+- [x] Update public route tests to confirm unchanged UI behavior with new ranking.
+- [x] Verify exact-match promotion, multi-word averaging, no stacking, and floor behavior.
 
 ### Observable verification
-- [ ] Search ranking reflects exact lexical coverage plus semantic similarity.
-- [ ] Search still returns exactly 5 results.
-- [ ] Public UI stays unchanged.
+- [x] Search ranking reflects exact lexical coverage plus semantic similarity.
+- [x] Search still returns exactly 5 results.
+- [x] Public UI stays unchanged.
 
 ---
 

@@ -22,6 +22,11 @@ def test_lexical_text_processor_uses_title_and_body(lexical_processor):
     assert "howl" in tokens
 
 
+def test_build_query_terms_removes_stopwords_and_lemmatizes(lexical_processor):
+    terms = lexical_processor.build_query_terms(" The running leaves and CATS ")
+    assert terms == ["run", "leaf", "cat"]
+
+
 def test_validate_resources_fails_when_required_assets_missing(tmp_path):
     processor = LexicalTextProcessor(str(tmp_path))
     with pytest.raises(LexicalResourceError, match="Missing required local NLTK resources"):

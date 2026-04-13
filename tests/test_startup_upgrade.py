@@ -69,7 +69,7 @@ def test_requires_rebuild_for_legacy_index_state(
         temp_db_path,
         embedding_service,
         lexical_processor,
-        SearchService(temp_db_path, embedding_service),
+        SearchService(temp_db_path, embedding_service, lexical_processor),
         RebuildLock(),
     )
 
@@ -87,7 +87,7 @@ def test_requires_no_rebuild_for_current_index_state(
         temp_db_path,
         embedding_service,
         lexical_processor,
-        SearchService(temp_db_path, embedding_service),
+        SearchService(temp_db_path, embedding_service, lexical_processor),
         RebuildLock(),
     )
 

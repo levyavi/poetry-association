@@ -111,6 +111,31 @@ def test_results_partial_renders_badges(client, app, embedding_service, lexical_
     assert any(f"badge-{lbl}" in html for lbl in ("strong", "moderate", "weak"))
 
 
+def test_search_route_still_returns_five_results_and_preserves_query(
+    client,
+    app,
+    embedding_service,
+    lexical_processor,
+):
+    cfg = app.config["POEM_CONFIG"]
+    conn = get_connection(cfg.db_path)
+    for i in range(6):
+        create_poem(
+            conn,
+            f"Poem {i}",
+            f"quiet light over river stone number {i}",
+            embedding_service,
+            lexical_processor,
+        )
+    conn.close()
+
+    resp = client.post("/search", data={"q": "quiet light"})
+    assert resp.status_code == 200
+    html = resp.data.decode()
+    assert 'value="quiet light"' in html
+    assert html.count('class="result"') == 5
+
+
 def test_search_route_untitled_for_blank_title(client, app, embedding_service):
     cfg = app.config["POEM_CONFIG"]
     conn = get_connection(cfg.db_path)

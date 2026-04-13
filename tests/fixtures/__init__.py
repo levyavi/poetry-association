@@ -24,6 +24,9 @@ def insert_poem_raw(
     title: str,
     text: str,
     blob: bytes,
+    *,
+    cleaned_text: str | None = None,
+    lemmatized_search_text: str = "",
 ) -> int:
     """Insert a poem row directly with a pre-computed embedding blob.
 
@@ -32,9 +35,18 @@ def insert_poem_raw(
     """
     now = "2024-01-01T00:00:00+00:00"
     cur = conn.execute(
-        "INSERT INTO poems (title, text, cleaned_text, embedding, created_at, updated_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (title, text, text, blob, now, now),
+        "INSERT INTO poems "
+        "(title, text, cleaned_text, lemmatized_search_text, embedding, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            title,
+            text,
+            text if cleaned_text is None else cleaned_text,
+            lemmatized_search_text,
+            blob,
+            now,
+            now,
+        ),
     )
     conn.commit()
     return cur.lastrowid

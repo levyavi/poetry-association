@@ -9,3 +9,4 @@ dist/
 build/
 tmp_imports/
 *.csv.tmp
+.env

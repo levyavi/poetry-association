@@ -46,17 +46,6 @@
       "env": {
         "PYTHONPATH": "${workspaceFolder}/src"
       }
-    },
-    {
-      "name": "PowerShell: Run task automation",
-      "type": "PowerShell",
-      "request": "launch",
-      "script": "${workspaceFolder}/scripts/run_tasks.ps1",
-      "cwd": "${workspaceFolder}",
-      "args": [
-        "-StartTask",
-        "001"
-      ]
     }
   ]
 }

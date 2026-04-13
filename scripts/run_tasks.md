@@ -140,12 +140,6 @@ From the project root:
 .\scripts\run_tasks_codex.ps1 -StartTask 005
 ```
 
-If PowerShell blocks script execution, run this once:
-
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
 ---
 
 ## What Each Script Does Per Task

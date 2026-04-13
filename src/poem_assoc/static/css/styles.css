@@ -461,6 +461,12 @@ header {
   font-size: 0.9rem;
 }
 
+.poems-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .poems-table th,
 .poems-table td {
   padding: 0.5rem 0.75rem;
@@ -732,12 +738,55 @@ header {
 /* ── Responsive ───────────────────────────────────────────── */
 
 @media (max-width: 480px) {
+  .container {
+    padding: 1.25rem 0.75rem;
+  }
+
   .search-form {
     flex-direction: column;
   }
 
+  .search-input {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 2.75rem;
+    height: 2.75rem;
+    padding: 0.55rem 0.75rem;
+  }
+
   .search-button {
     width: 100%;
+  }
+
+  .dashboard-header,
+  .sort-form {
+    align-items: stretch;
+  }
+
+  .sort-form {
+    width: 100%;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .sort-select {
+    width: 100%;
+  }
+
+  .poems-table {
+    font-size: 0.82rem;
+  }
+
+  .poems-table th,
+  .poems-table td {
+    padding: 0.45rem 0.4rem;
+  }
+
+  .poems-table th:nth-child(3),
+  .poems-table th:nth-child(4),
+  .poems-table td:nth-child(3),
+  .poems-table td:nth-child(4) {
+    display: none;
   }
 
   .result-title {

@@ -27,35 +27,37 @@
   </div>
 
   {% if poems %}
-  <table class="poems-table">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Title</th>
-        <th>Created</th>
-        <th>Updated</th>
-        <th>Edit</th>
-        <th>Delete</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for poem in poems %}
-      <tr>
-        <td>{{ poem["id"] }}</td>
-        <td>{{ poem["title"] if poem["title"] else "Untitled" }}</td>
-        <td>{{ poem["created_at"] }}</td>
-        <td>{{ poem["updated_at"] }}</td>
-        {% if admin_write_available %}
-        <td><a href="{{ url_for('admin.edit_poem_form', poem_id=poem['id']) }}" class="action-link">Edit</a></td>
-        <td><a href="{{ url_for('admin.delete_poem_confirm', poem_id=poem['id']) }}" class="action-link action-link-danger">Delete</a></td>
-        {% else %}
-        <td><span class="action-link action-link-disabled" aria-disabled="true">Edit</span></td>
-        <td><span class="action-link action-link-disabled" aria-disabled="true">Delete</span></td>
-        {% endif %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="poems-table-wrap">
+    <table class="poems-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Title</th>
+          <th>Created</th>
+          <th>Updated</th>
+          <th>Edit</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for poem in poems %}
+        <tr>
+          <td>{{ poem["id"] }}</td>
+          <td>{{ poem["title"] if poem["title"] else "Untitled" }}</td>
+          <td>{{ poem["created_at"] }}</td>
+          <td>{{ poem["updated_at"] }}</td>
+          {% if admin_write_available %}
+          <td><a href="{{ url_for('admin.edit_poem_form', poem_id=poem['id']) }}" class="action-link">Edit</a></td>
+          <td><a href="{{ url_for('admin.delete_poem_confirm', poem_id=poem['id']) }}" class="action-link action-link-danger">Delete</a></td>
+          {% else %}
+          <td><span class="action-link action-link-disabled" aria-disabled="true">Edit</span></td>
+          <td><span class="action-link action-link-disabled" aria-disabled="true">Delete</span></td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% else %}
   <p class="no-results">No poems found.</p>
   {% endif %}

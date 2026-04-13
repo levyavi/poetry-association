@@ -318,6 +318,43 @@ python -m poem_assoc import-csv sample_data/example_poems_real.csv
 
 ---
 
+## Deploying on Railway
+
+This repo includes a `railway.toml` configuration for Railway deployment.
+
+Important deployment note:
+
+- Railway services use ephemeral filesystem storage by default.
+- Because this app stores its data in SQLite, you should attach a Railway volume and place the database and import temp files on that volume.
+
+Recommended Railway environment variables:
+
+- `POEM_DB_PATH=/data/poem_assoc.db`
+- `POEM_IMPORT_TEMP_DIR=/data/import`
+- `POEM_MODEL_PATH=/app/.models/all-MiniLM-L6-v2`
+- `POEM_LOG_LEVEL=WARNING`
+- `ENABLE_SYNONYM_EXPANSION=true`
+- `POEM_ADMIN_PASSWORD=<strong-admin-password>`
+- `POEM_SECRET_KEY=<long-random-secret>`
+
+Typical first deploy:
+
+1. Push the repository to GitHub.
+2. Create a new Railway project from the repository.
+3. Attach a volume mounted at `/data`.
+4. Set the environment variables above.
+5. Deploy the service.
+
+The Railway build downloads the `all-MiniLM-L6-v2` sentence-transformers model into `.models/` so runtime can stay offline.
+
+After the service is live, open a Railway shell and seed the database:
+
+```bash
+python -m poem_assoc import-csv sample_data/example_poems_real.csv
+```
+
+---
+
 ## Further Reading
 
 - Authoritative V2 spec: `docs/poetry_association_tool_v2_design_document.md`

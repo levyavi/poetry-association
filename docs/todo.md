@@ -179,41 +179,41 @@ The authoritative scope is [`docs/poetry_association_tool_v2_design_document.md`
 
 ## Task 013 — Synonym Cache, Search Diagnostics, and V2 Regression Hardening
 
-- [ ] **013** complete
+- [x] **013** complete
 
 ### Config and runtime behavior
-- [ ] Add local log-level configuration.
-- [ ] Add process-lifetime synonym cache keyed by normalized eligible query word.
-- [ ] Keep cache reset behavior tied to process restart only.
-- [ ] Emit structured local diagnostics from the search path.
+- [x] Add local log-level configuration.
+- [x] Add process-lifetime synonym cache keyed by normalized eligible query word.
+- [x] Keep cache reset behavior tied to process restart only.
+- [x] Emit structured local diagnostics from the search path.
 
 ### Required logged fields
-- [ ] Original query
-- [ ] Normalized semantic query
-- [ ] Lexical query words after stopword removal
-- [ ] POS tags used for synonym eligibility
-- [ ] Synonym expansions actually used
-- [ ] Cache hit/miss status
-- [ ] Per-result semantic score
-- [ ] Per-result lexical score
-- [ ] Per-result final score
-- [ ] Per-result exact vs synonym match reason by query word
-- [ ] Triggering synonym when a synonym match occurs
+- [x] Original query
+- [x] Normalized semantic query
+- [x] Lexical query words after stopword removal
+- [x] POS tags used for synonym eligibility
+- [x] Synonym expansions actually used
+- [x] Cache hit/miss status
+- [x] Per-result semantic score
+- [x] Per-result lexical score
+- [x] Per-result final score
+- [x] Per-result exact vs synonym match reason by query word
+- [x] Triggering synonym when a synonym match occurs
 
 ### Regression assets and tests
-- [ ] Create `tests/fixtures/fixture_v2_regression.csv`.
-- [ ] Create `tests/test_search_diagnostics.py`.
-- [ ] Create `tests/test_v2_regression.py`.
-- [ ] Extend startup-upgrade tests with final V2 acceptance coverage.
-- [ ] Extend rebuild tests with regression-corpus lexical regeneration coverage.
-- [ ] Verify deterministic search ordering for fixed fixture data.
-- [ ] Verify cache hit on repeated eligible-word searches in the same process.
-- [ ] Verify diagnostics remain local-only and omit full poem text.
+- [x] Create `tests/fixtures/fixture_v2_regression.csv`.
+- [x] Create `tests/test_search_diagnostics.py`.
+- [x] Create `tests/test_v2_regression.py`.
+- [x] Extend startup-upgrade tests with final V2 acceptance coverage.
+- [x] Extend rebuild tests with regression-corpus lexical regeneration coverage.
+- [x] Verify deterministic search ordering for fixed fixture data.
+- [x] Verify cache hit on repeated eligible-word searches in the same process.
+- [x] Verify diagnostics remain local-only and omit full poem text.
 
 ### Observable verification
-- [ ] Repeated searches reuse cached synonym expansions.
-- [ ] Local logs contain the required diagnostics when enabled.
-- [ ] Final V2 acceptance coverage exists for upgrade, ranking, and regeneration behavior.
+- [x] Repeated searches reuse cached synonym expansions.
+- [x] Local logs contain the required diagnostics when enabled.
+- [x] Final V2 acceptance coverage exists for upgrade, ranking, and regeneration behavior.
 
 ---
 

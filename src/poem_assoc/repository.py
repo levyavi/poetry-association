@@ -135,7 +135,7 @@ def iter_embeddings(conn: sqlite3.Connection):
     """Yield lexical and embedding search data for every poem that has an embedding."""
     rows = conn.execute(
         "SELECT id, title, text, lemmatized_search_text, embedding "
-        "FROM poems WHERE embedding IS NOT NULL"
+        "FROM poems WHERE embedding IS NOT NULL ORDER BY id"
     ).fetchall()
     for row in rows:
         blob: bytes = row["embedding"]

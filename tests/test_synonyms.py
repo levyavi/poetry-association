@@ -32,10 +32,10 @@ def test_pos_filter_allows_nouns_and_adjectives_only(
     monkeypatch.setattr("poem_assoc.synonyms.wordnet.synsets", fake_synsets)
     expander = SynonymExpander(lexical_processor)
 
-    assert expander.expand_term("grief", "NN") == ["ally"]
-    assert expander.expand_term("quiet", "JJ") == ["ally"]
-    assert expander.expand_term("run", "VB") == []
-    assert expander.expand_term("swiftly", "RB") == []
+    assert expander.expand_term("grief", "NN").synonyms == ("ally",)
+    assert expander.expand_term("quiet", "JJ").synonyms == ("ally",)
+    assert expander.expand_term("run", "VB").synonyms == ()
+    assert expander.expand_term("swiftly", "RB").synonyms == ()
     assert calls == [("grief", "n"), ("quiet", "a")]
 
 
@@ -49,7 +49,7 @@ def test_expand_term_uses_top_synset_only(lexical_processor, monkeypatch):
     )
     expander = SynonymExpander(lexical_processor)
 
-    assert expander.expand_term("grief", "NN") == ["sorrow"]
+    assert expander.expand_term("grief", "NN").synonyms == ("sorrow",)
 
 
 def test_expand_term_discards_multiword_and_original_term(
@@ -71,7 +71,7 @@ def test_expand_term_discards_multiword_and_original_term(
     )
     expander = SynonymExpander(lexical_processor)
 
-    assert expander.expand_term("grief", "NN") == ["sorrow"]
+    assert expander.expand_term("grief", "NN").synonyms == ("sorrow",)
 
 
 def test_expand_term_caps_at_five_after_normalization_and_dedup(
@@ -96,13 +96,13 @@ def test_expand_term_caps_at_five_after_normalization_and_dedup(
     )
     expander = SynonymExpander(lexical_processor)
 
-    assert expander.expand_term("leaf", "NN") == [
+    assert expander.expand_term("leaf", "NN").synonyms == (
         "foliage",
         "frond",
         "blade",
         "sprig",
         "shoot",
-    ]
+    )
 
 
 def test_no_usable_synonyms_returns_empty_list(lexical_processor, monkeypatch):
@@ -120,4 +120,50 @@ def test_no_usable_synonyms_returns_empty_list(lexical_processor, monkeypatch):
     )
     expander = SynonymExpander(lexical_processor)
 
-    assert expander.expand_term("grief", "NN") == []
+    assert expander.expand_term("grief", "NN").synonyms == ()
+
+
+def test_expand_term_returns_cache_hit_on_second_call(
+    lexical_processor,
+    monkeypatch,
+):
+    calls: list[tuple[str, str | None]] = []
+
+    def fake_synsets(term: str, pos: str | None = None):
+        calls.append((term, pos))
+        return [_FakeSynset(term, "sorrow")]
+
+    monkeypatch.setattr("poem_assoc.synonyms.wordnet.synsets", fake_synsets)
+    expander = SynonymExpander(lexical_processor)
+
+    first = expander.expand_term("grief", "NN")
+    second = expander.expand_term("grief", "NN")
+
+    assert first.synonyms == ("sorrow",)
+    assert first.cache_hit is False
+    assert second.synonyms == ("sorrow",)
+    assert second.cache_hit is True
+    assert calls == [("grief", "n")]
+
+
+def test_new_synonym_expander_instance_starts_with_empty_cache(
+    lexical_processor,
+    monkeypatch,
+):
+    calls: list[tuple[str, str | None]] = []
+
+    def fake_synsets(term: str, pos: str | None = None):
+        calls.append((term, pos))
+        return [_FakeSynset(term, "sorrow")]
+
+    monkeypatch.setattr("poem_assoc.synonyms.wordnet.synsets", fake_synsets)
+
+    first_expander = SynonymExpander(lexical_processor)
+    assert first_expander.expand_term("grief", "NN").cache_hit is False
+    assert first_expander.expand_term("grief", "NN").cache_hit is True
+
+    second_expander = SynonymExpander(lexical_processor)
+    first_from_new_instance = second_expander.expand_term("grief", "NN")
+
+    assert first_from_new_instance.cache_hit is False
+    assert calls == [("grief", "n"), ("grief", "n")]

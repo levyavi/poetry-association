@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import secrets
 from dataclasses import dataclass
@@ -13,6 +14,19 @@ def _read_bool_from_environment(name: str, default: bool) -> bool:
     return value.strip().lower() not in {"", "0", "false", "no", "off"}
 
 
+def _normalize_log_level(value: str | None, default: str = "WARNING") -> str:
+    if value is None:
+        return default
+
+    normalized = value.strip().upper()
+    if normalized == "WARN":
+        normalized = "WARNING"
+
+    if normalized in logging.getLevelNamesMapping():
+        return normalized
+    return default
+
+
 @dataclass
 class Config:
     db_path: str
@@ -23,6 +37,7 @@ class Config:
     nltk_data_path: str = ""
     import_temp_dir: str = ""
     enable_synonym_expansion: bool = True
+    log_level: str = "WARNING"
 
     def __post_init__(self) -> None:
         if not self.import_temp_dir:
@@ -34,6 +49,7 @@ class Config:
                 resources.files("poem_assoc").joinpath("resources", "nltk_data")
             )
         self.nltk_data_path = os.path.abspath(self.nltk_data_path)
+        self.log_level = _normalize_log_level(self.log_level)
 
     @classmethod
     def from_environment(cls) -> "Config":
@@ -48,4 +64,5 @@ class Config:
             enable_synonym_expansion=_read_bool_from_environment(
                 "ENABLE_SYNONYM_EXPANSION", True
             ),
+            log_level=os.environ.get("POEM_LOG_LEVEL", "WARNING"),
         )

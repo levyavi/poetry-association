@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import logging
 import threading
 from dataclasses import dataclass
 
@@ -10,7 +12,7 @@ from . import repository
 from .db import get_connection
 from .embedding import EmbeddingService
 from .lexical import LexicalTextProcessor, TaggedQueryTerm
-from .synonyms import SynonymExpander
+from .synonyms import SynonymExpander, SynonymExpansion
 from .text_cleaning import clean_query
 
 
@@ -54,12 +56,14 @@ class SearchService:
         synonym_expander: SynonymExpander | None = None,
         *,
         enable_synonym_expansion: bool = True,
+        logger: logging.Logger | None = None,
     ) -> None:
         self._db_path = db_path
         self._embedding_service = embedding_service
         self._lexical_processor = lexical_processor
         self._synonym_expander = synonym_expander
         self._enable_synonym_expansion = enable_synonym_expansion
+        self._logger = logger or logging.getLogger("poem_assoc.search")
         self._lock = threading.Lock()
         self._cached = False
         self._ids: list[int] = []
@@ -129,7 +133,7 @@ class SearchService:
             synonym_map = self._build_synonym_map(tagged_query_terms)
 
             ranked: list[
-                tuple[float, str, int, str, float, float]
+                tuple[float, str, int, str, float, float, float, dict[str, dict[str, str | None]]]
             ] = []
             for semantic_score, title, poem_id, cleaned_text, poem_terms in zip(
                 scores.tolist(),
@@ -138,7 +142,7 @@ class SearchService:
                 self._cleaned_texts,
                 self._lexical_terms,
             ):
-                lexical_score = self._lexical_score(
+                raw_lexical_score, match_reasons = self._lexical_score(
                     tagged_query_terms,
                     poem_terms,
                     synonym_map,
@@ -146,7 +150,7 @@ class SearchService:
                 effective_lexical = (
                     0.0
                     if semantic_score < constants.SEMANTIC_FLOOR
-                    else lexical_score
+                    else raw_lexical_score
                 )
                 final_score = (
                     constants.SEMANTIC_WEIGHT * semantic_score
@@ -160,12 +164,15 @@ class SearchService:
                         cleaned_text,
                         semantic_score,
                         effective_lexical,
+                        raw_lexical_score,
+                        match_reasons,
                     )
                 )
 
             ranked.sort(key=lambda row: (-row[0], row[1]))
 
             results: list[SearchResult] = []
+            diagnostic_results: list[dict[str, object]] = []
             for (
                 final_score,
                 title,
@@ -173,6 +180,8 @@ class SearchService:
                 cleaned_text,
                 semantic_score,
                 lexical_score,
+                raw_lexical_score,
+                match_reasons,
             ) in ranked[:limit]:
                 display_title = title if title else "Untitled"
                 preview = _make_preview(cleaned_text)
@@ -188,6 +197,43 @@ class SearchService:
                         label=label,
                     )
                 )
+                diagnostic_results.append(
+                    {
+                        "poem_id": poem_id,
+                        "title": display_title,
+                        "semantic_score": float(semantic_score),
+                        "lexical_score": float(lexical_score),
+                        "raw_lexical_score": float(raw_lexical_score),
+                        "final_score": float(final_score),
+                        "label": label,
+                        "match_reasons": match_reasons,
+                    }
+                )
+
+            self._log_diagnostics(
+                {
+                    "original_query": query,
+                    "normalized_semantic_query": cleaned,
+                    "lexical_query_words": [
+                        tagged_term.term for tagged_term in tagged_query_terms
+                    ],
+                    "pos_tags": {
+                        tagged_term.term: tagged_term.pos_tag
+                        for tagged_term in tagged_query_terms
+                    },
+                    "synonym_expansions": {
+                        term: list(expansion.synonyms)
+                        for term, expansion in synonym_map.items()
+                        if expansion.synonyms
+                    },
+                    "synonym_cache": {
+                        term: ("hit" if expansion.cache_hit else "miss")
+                        for term, expansion in synonym_map.items()
+                        if expansion.cache_hit is not None
+                    },
+                    "results": diagnostic_results,
+                }
+            )
 
             return results
 
@@ -195,33 +241,58 @@ class SearchService:
         self,
         tagged_query_terms: list[TaggedQueryTerm],
         poem_terms: frozenset[str],
-        synonym_map: dict[str, frozenset[str]],
-    ) -> float:
+        synonym_map: dict[str, SynonymExpansion],
+    ) -> tuple[float, dict[str, dict[str, str | None]]]:
         if not tagged_query_terms:
-            return 0.0
+            return 0.0, {}
 
         total = 0.0
+        match_reasons: dict[str, dict[str, str | None]] = {}
         for tagged_term in tagged_query_terms:
+            match_reason = {"match_type": "none", "triggering_synonym": None}
             if tagged_term.term in poem_terms:
                 total += constants.EXACT_LEXICAL_MATCH_VALUE
+                match_reason["match_type"] = "exact"
+                match_reasons[tagged_term.term] = match_reason
                 continue
 
-            synonyms = synonym_map.get(tagged_term.term, frozenset())
-            if synonyms and poem_terms.intersection(synonyms):
+            expansion = synonym_map.get(tagged_term.term)
+            matched_synonym = None
+            if expansion is not None:
+                matched_synonym = next(
+                    (
+                        synonym
+                        for synonym in expansion.synonyms
+                        if synonym in poem_terms
+                    ),
+                    None,
+                )
+            if matched_synonym is not None:
                 total += constants.SYNONYM_LEXICAL_MATCH_VALUE
+                match_reason["match_type"] = "synonym"
+                match_reason["triggering_synonym"] = matched_synonym
+            match_reasons[tagged_term.term] = match_reason
 
-        return total / len(tagged_query_terms)
+        return total / len(tagged_query_terms), match_reasons
 
     def _build_synonym_map(
         self,
         tagged_query_terms: list[TaggedQueryTerm],
-    ) -> dict[str, frozenset[str]]:
+    ) -> dict[str, SynonymExpansion]:
         if not self._enable_synonym_expansion or self._synonym_expander is None:
             return {}
 
-        expansions = self._synonym_expander.expand_terms(tagged_query_terms)
-        return {
-            term: frozenset(synonyms)
-            for term, synonyms in expansions.items()
-            if synonyms
-        }
+        return self._synonym_expander.expand_terms(tagged_query_terms)
+
+    def _log_diagnostics(self, payload: dict[str, object]) -> None:
+        if not self._logger.isEnabledFor(logging.INFO):
+            return
+
+        try:
+            self._logger.info(
+                "search_diagnostics %s",
+                json.dumps(payload, sort_keys=True, separators=(",", ":")),
+                extra={"diagnostics": payload},
+            )
+        except Exception:
+            return

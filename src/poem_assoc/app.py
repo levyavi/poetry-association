@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from flask import Flask, render_template, request
 
 from .config import Config
@@ -13,6 +15,26 @@ from .routes.public import public_bp
 from .search import SearchService
 from .startup_upgrade import StartupUpgradeCoordinator
 from .synonyms import SynonymExpander
+
+
+def _configure_search_logger(log_level: str) -> logging.Logger:
+    logger = logging.getLogger("poem_assoc.search")
+    level = logging.getLevelNamesMapping().get(log_level.upper(), logging.WARNING)
+
+    if not any(
+        getattr(handler, "_poem_assoc_search_handler", False)
+        for handler in logger.handlers
+    ):
+        handler = logging.StreamHandler()
+        handler._poem_assoc_search_handler = True
+        handler.setFormatter(logging.Formatter("%(levelname)s %(name)s %(message)s"))
+        logger.addHandler(handler)
+
+    logger.setLevel(level)
+    logger.propagate = False
+    for handler in logger.handlers:
+        handler.setLevel(level)
+    return logger
 
 
 def create_app(
@@ -29,6 +51,9 @@ def create_app(
 
     app.config["SECRET_KEY"] = cfg.secret_key
     app.config["POEM_CONFIG"] = cfg
+
+    search_logger = _configure_search_logger(cfg.log_level)
+    app.extensions["search_logger"] = search_logger
 
     lexical_processor = LexicalTextProcessor(cfg.nltk_data_path)
     lexical_processor.validate_resources()
@@ -52,6 +77,7 @@ def create_app(
         lexical_processor,
         synonym_expander=synonym_expander,
         enable_synonym_expansion=cfg.enable_synonym_expansion,
+        logger=search_logger,
     )
     app.extensions["search"] = search_service
 

@@ -1,4 +1,5 @@
 import numpy as np
+from pathlib import Path
 
 from poem_assoc.constants import LEGACY_SEARCH_INDEX_VERSION, SEARCH_INDEX_VERSION
 from poem_assoc.db import get_connection, init_db
@@ -33,6 +34,10 @@ def _insert_poem(
 def _get_embedding_bytes(conn, poem_id):
     row = conn.execute("SELECT embedding FROM poems WHERE id = ?", (poem_id,)).fetchone()
     return bytes(row["embedding"]) if row else None
+
+
+def _regression_fixture_path() -> Path:
+    return Path(__file__).parent / "fixtures" / "fixture_v2_regression.csv"
 
 
 def test_rebuild_regenerates_all_embeddings(
@@ -224,5 +229,51 @@ def test_manual_rebuild_backfills_lexical_field_for_existing_rows(
         assert result.error is None
         assert row["lemmatized_search_text"] == "run dog leaf be fall"
         assert state.search_index_version == SEARCH_INDEX_VERSION
+    finally:
+        conn.close()
+
+
+def test_rebuild_regenerates_lexical_text_for_regression_fixture(
+    temp_db_path,
+    embedding_service,
+    lexical_processor,
+):
+    init_db(temp_db_path)
+    conn = get_connection(temp_db_path)
+    try:
+        import csv
+
+        with _regression_fixture_path().open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            for poem_id, row in enumerate(reader, start=1):
+                _insert_poem(
+                    conn,
+                    poem_id,
+                    row["title"],
+                    row["text"],
+                    embedding_service,
+                    lexical_text="",
+                )
+
+        with conn:
+            conn.execute(
+                "UPDATE app_metadata SET value = ? WHERE key = 'search_index_version'",
+                (LEGACY_SEARCH_INDEX_VERSION,),
+            )
+
+        result = run_rebuild(conn, embedding_service, lexical_processor)
+        rows = conn.execute(
+            "SELECT title, lemmatized_search_text FROM poems ORDER BY id"
+        ).fetchall()
+        state = get_index_state(conn)
+
+        assert result.error is None
+        assert result.rebuilt == 6
+        assert state.search_index_version == SEARCH_INDEX_VERSION
+        assert all(row["lemmatized_search_text"] for row in rows)
+        assert rows[0]["title"] == "Lantern Vigil"
+        assert rows[0]["lemmatized_search_text"] == (
+            "lantern vigil quiet grief lantern by the river"
+        )
     finally:
         conn.close()

@@ -286,6 +286,38 @@ Operational constraints:
 
 ---
 
+## Deploying on Render
+
+This repo includes a `render.yaml` blueprint for Render web-service deployment.
+
+Important deployment note:
+
+- The default `render.yaml` uses `POEM_DB_PATH=/tmp/poem_assoc.db`, which is ephemeral and suitable only for a demo deployment on Render's free tier.
+- If you need persistent admin CRUD and CSV imports across restarts/redeploys, attach a persistent disk in Render and change `POEM_DB_PATH` and `POEM_IMPORT_TEMP_DIR` to that mount path (for example `/var/data/poem_assoc.db` and `/var/data/import`).
+
+The Render build downloads the `all-MiniLM-L6-v2` sentence-transformers model into `.render/model/` so runtime can stay offline.
+
+Typical first deploy:
+
+```bash
+git push origin main
+```
+
+Then in Render:
+
+1. Create a new Blueprint or Web Service from this repository.
+2. Confirm the generated environment variables.
+3. For a persistent deployment, add a disk and update the DB/temp paths away from `/tmp`.
+4. Deploy the service.
+
+After the service is live, you can open a Render shell and seed the database:
+
+```bash
+python -m poem_assoc import-csv sample_data/example_poems_real.csv
+```
+
+---
+
 ## Further Reading
 
 - Authoritative V2 spec: `docs/poetry_association_tool_v2_design_document.md`

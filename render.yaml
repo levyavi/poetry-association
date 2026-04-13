@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: poem-association
+    runtime: python
+    plan: free
+    buildCommand: pip install -e . && python scripts/render_build.py
+    startCommand: gunicorn "poem_assoc:create_app()" --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 180
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: POEM_DB_PATH
+        value: /tmp/poem_assoc.db
+      - key: POEM_IMPORT_TEMP_DIR
+        value: /tmp/poem_assoc-import
+      - key: POEM_MODEL_PATH
+        value: /opt/render/project/src/.render/model/all-MiniLM-L6-v2
+      - key: POEM_LOG_LEVEL
+        value: WARNING
+      - key: ENABLE_SYNONYM_EXPANSION
+        value: "true"
+      - key: POEM_ADMIN_PASSWORD
+        generateValue: true
+      - key: POEM_SECRET_KEY
+        generateValue: true

@@ -97,11 +97,14 @@ function closeModal() {
 }
 
 function copyPoem() {
+  const titleEl = document.querySelector('[data-modal-title]');
   const bodyEl = document.querySelector('[data-modal-body]');
   const copyButton = document.querySelector('.modal__copy-button');
-  if (!bodyEl || !copyButton) return;
+  if (!titleEl || !bodyEl || !copyButton) return;
 
-  const text = bodyEl.textContent;
+  const title = titleEl.textContent.trim();
+  const body = bodyEl.textContent;
+  const text = body ? `${title}\n\n${body}` : title;
 
   // Try async clipboard API first
   if (navigator.clipboard && navigator.clipboard.writeText) {

@@ -320,7 +320,7 @@ python -m poem_assoc import-csv sample_data/example_poems_real.csv
 
 ## Deploying on Railway
 
-This repo includes a `railway.toml` configuration for Railway deployment.
+This repo includes a `Dockerfile` and `railway.toml` configuration for Railway deployment.
 
 Important deployment note:
 
@@ -345,7 +345,7 @@ Typical first deploy:
 4. Set the environment variables above.
 5. Deploy the service.
 
-The Railway build downloads the `all-MiniLM-L6-v2` sentence-transformers model into `.models/` so runtime can stay offline.
+The Railway image build installs the app after copying the full source tree, then downloads the `all-MiniLM-L6-v2` sentence-transformers model into `.models/` so runtime can stay offline.
 
 After the service is live, open a Railway shell and seed the database:
 
